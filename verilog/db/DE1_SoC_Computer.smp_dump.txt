@@ -1,0 +1,15 @@
+
+State Machine - |DE1_SoC_Computer|Add_Remove_Search:art_machine|ps
+Name ps.STATE_DONE ps.STATE_OUTPUT ps.STATE_REMOVE ps.STATE_UPDATE ps.STATE_ADD ps.STATE_RESET 
+ps.STATE_RESET 0 0 0 0 0 0 
+ps.STATE_ADD 0 0 0 0 1 1 
+ps.STATE_UPDATE 0 0 0 1 0 1 
+ps.STATE_REMOVE 0 0 1 0 0 1 
+ps.STATE_OUTPUT 0 1 0 0 0 1 
+ps.STATE_DONE 1 0 0 0 0 1 
+
+State Machine - |DE1_SoC_Computer|Add_Remove_Search:art_machine|Bresenham_Solver:solver|ps
+Name ps.STATE_READY ps.STATE_OUTPUT ps.STATE_WORK 
+ps.STATE_READY 0 0 0 
+ps.STATE_WORK 1 0 1 
+ps.STATE_OUTPUT 1 1 0 

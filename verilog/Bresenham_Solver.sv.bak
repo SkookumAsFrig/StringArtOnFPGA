@@ -1,0 +1,264 @@
+module Bresenham_Solver
+(
+    input  logic clk,
+    input  logic reset,
+
+    output logic req_rdy,
+    input  logic req_val,
+    input  logic [8:0] req_point_1_x,
+    input  logic [8:0] req_point_1_y,
+    input  logic [8:0] req_point_2_x,
+    input  logic [8:0] req_point_2_y,
+    input  logic change,
+    input  logic [1:0] mode,
+
+    input  logic resp_rdy,
+    output logic resp_val,
+    output logic signed [18:0] reduction
+);
+
+logic [8:0] point_1_x;
+logic [8:0] point_1_y;
+logic [8:0] point_2_x;
+logic [8:0] point_2_y;
+logic [8:0] point_x_interval;
+logic [8:0] point_y_interval;
+
+logic [8:0] point_draw_x;
+logic [8:0] point_draw_y;
+logic signed [12:0] point_x_interval_extend;
+logic signed [12:0] point_y_interval_extend;
+logic signed [12:0] p;
+
+logic [1:0]  wait_count;
+logic [17:0] image_address;
+logic [17:0] image_address_now;
+logic [17:0] image_address_prev_1;
+logic [7:0]  image_data;
+logic [7:0]  count_data;
+logic [7:0]  count_update_data;
+logic signed [18:0] image_data_extend;
+
+logic count_we_en;
+
+
+logic initial_done;
+logic cal_done;
+
+localparam signed [18:0] black = 255;
+
+
+typedef enum logic [1:0] {
+    STATE_READY,
+    STATE_WORK,
+    STATE_OUTPUT
+} state_def;
+
+state_def ps, ns;
+
+always_ff @(posedge clk)
+begin
+    if( reset == 0)
+        ps <= STATE_READY;
+    else
+        ps <= ns;
+end
+
+always_ff @(posedge clk)
+begin
+    case( ps )
+     
+    STATE_READY:
+	begin
+	    image_address_now    <= 0;
+	    image_address_prev_1 <= 0;	
+	end
+
+	STATE_WORK:
+	begin
+	    if(wait_count >= 1)
+	    begin
+	        image_address_now    <= image_address;
+	        image_address_prev_1 <= image_address_now;
+	    end
+	end
+	
+	STATE_OUTPUT:
+	begin
+	    image_address_now    <= 0;
+	    image_address_prev_1 <= 0;	
+	end
+    endcase
+end
+
+
+assign req_rdy = (ps == STATE_READY);
+assign resp_val = (ps == STATE_OUTPUT);
+assign resp_point_x = point_draw_x;
+assign resp_point_y = point_draw_y;
+assign image_address = change ? (point_draw_y * 512 + point_draw_x) : (point_draw_x * 512 + point_draw_y); 
+assign image_data_extend = {{11{1'b0}}, image_data};
+
+always_ff @(posedge clk)
+begin
+
+    case( ps )
+
+        STATE_READY:
+        begin
+            cal_done    = 0;
+            reduction   = 0;
+            wait_count  = 0;
+	        count_we_en = 0;
+            if(req_val)
+            begin
+                point_1_x = req_point_1_x < req_point_2_x ? req_point_1_x : req_point_2_x;
+                point_1_y = req_point_1_y < req_point_2_y ? req_point_1_y : req_point_2_y;
+                point_2_x = req_point_1_x < req_point_2_x ? req_point_2_x : req_point_1_x;
+                point_2_y = req_point_1_y < req_point_2_y ? req_point_2_y : req_point_1_y;
+                point_x_interval = req_point_1_x < req_point_2_x ? req_point_2_x - req_point_1_x : req_point_1_x - req_point_2_x;
+                point_y_interval = req_point_1_y < req_point_2_y ? req_point_2_y - req_point_1_y : req_point_1_y - req_point_2_y;
+                point_x_interval_extend =  {4'h0, point_x_interval};
+                point_y_interval_extend =  {4'h0, point_y_interval};
+                p = (point_y_interval_extend <<< 1) - point_x_interval_extend;
+                initial_done = 1;
+            end
+        end
+
+        STATE_WORK:
+        begin
+            initial_done = 0;
+            if(point_1_x < point_2_x)
+            begin
+                point_draw_x = point_1_x;
+                point_draw_y = point_1_y;
+                point_1_x    = point_1_x + 1 ;
+                if( p >= 0)
+                begin
+                    point_1_y = point_1_y + 1 ;
+                    p = p + (point_y_interval_extend <<< 1) - (point_x_interval_extend <<< 1);
+                end
+                else
+                begin
+                    p = p + (point_y_interval_extend <<< 1);
+                end
+            end
+            else
+            begin
+                cal_done = 1;
+            end
+            
+            case (mode)
+                
+                0:
+                begin
+                    count_we_en = 1'b0;
+                    if(wait_count < 2)
+                        wait_count = wait_count + 1;
+            	    else if(count_data == 0)
+                	    reduction = reduction + (image_data_extend <<< 1) - black;
+		        end
+		
+                1:
+                begin
+                    count_we_en = 1'b0;
+                    if(wait_count < 2)
+                        wait_count = wait_count + 1;
+                    else
+                    begin
+                        count_we_en = 1'b1;
+                        count_update_data = count_data + 1;
+                    end
+                end
+		
+                2:
+                begin
+                    count_we_en = 1'b0;
+                    if(wait_count < 2)
+                        wait_count = wait_count + 1;
+                    else if(count_data == 1)
+                        reduction = reduction - (image_data_extend <<< 1) + black;
+                end
+		
+                3:
+                begin
+                    count_we_en = 1'b0;
+                    if(wait_count < 2)
+                        wait_count = wait_count + 1;
+                    else
+                    begin
+                        count_we_en = 1'b1;
+                        count_update_data = count_data - 1;
+                    end
+                end
+	        endcase
+            
+        end
+
+        STATE_OUTPUT:
+        begin
+            cal_done    = 0;
+            wait_count  = 0;
+	    count_we_en = 0;
+        end
+    endcase
+end
+
+
+always_comb
+begin
+
+    ns = ps;
+
+    case( ps )
+
+        STATE_READY:
+
+            if( initial_done )
+                ns = STATE_WORK;
+        
+        STATE_WORK:
+
+            if( cal_done )
+                ns = STATE_OUTPUT;
+        
+        STATE_OUTPUT:
+            
+            if( resp_val && resp_rdy)
+                ns = STATE_READY;
+        
+        default:
+            ns = STATE_READY;
+    
+    endcase
+end
+
+Image_Memory
+#(.DATA_WIDTH(8),
+.ADDR_WIDTH(18)
+)
+image_memory
+(
+    .data(),
+    .addr(image_address),
+    .we(1'b0),
+    .clk(clk),
+    .q(image_data)
+);
+
+Count_Memory
+#(.DATA_WIDTH(8),
+.ADDR_WIDTH(18)
+)
+count_memory
+(
+    .data(count_update_data),
+    .read_addr(image_address),
+    .write_addr(image_address_prev_1),
+    .we(count_we_en),
+    .read_clock(clk),
+    .write_clock(clk),
+    .q(count_data)
+);
+
+endmodule
