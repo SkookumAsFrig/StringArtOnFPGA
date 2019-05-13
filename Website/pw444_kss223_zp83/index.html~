@@ -26,7 +26,7 @@ figure figcaption {
 			</figure>
 			<figure>
 				<img src="./Images/einstein_ex.png" alt="Processed Image" style="width:400px">
-				<figcaption>Fig.2 Processed String Art Image (from MATLAB code)</figcaption>
+				<figcaption>Fig.2 Processed String Art Image (from running MATLAB code)</figcaption>
 			</figure>
 		</div>
 		<p> The algorithm that Barton used to derive the processed images was developed by computer graphics researchers at TU Wien (Vienna University of Technology), which is outlined in detail in this <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/>paper</a>. In it, they formulate the problem mathematically and present their trials of different optimization methods to approach a good result, which in the end is judged subjectively by the human eye (as art should be, although they do present quantitative evaluation as well).</p>
