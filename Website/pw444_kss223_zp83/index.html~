@@ -26,19 +26,31 @@ figure figcaption {
 			</figure>
 			<figure>
 				<img src="./Images/einstein_ex.png" alt="Processed Image" style="width:400px">
-				<figcaption>Fig.2 Processed String Art Image (from running MATLAB code)</figcaption>
+				<figcaption>Fig.2 Processed String Art Image (from MATLAB code)</figcaption>
 			</figure>
 		</div>
 		<p> The algorithm that Barton used to derive the processed images was developed by computer graphics researchers at TU Wien (Vienna University of Technology), which is outlined in detail in this <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/>paper</a>. In it, they formulate the problem mathematically and present their trials of different optimization methods to approach a good result, which in the end is judged subjectively by the human eye (as art should be, although they do present quantitative evaluation as well).</p>
 		<p> We will explain the algorithm in detail below, but the problem with the researchers' implementation of it in MATLAB is that it runs extraordinarily slow. Most of the inefficiency is a result of MATLAB being a script language that is compiled during execution. It took over 3 hours to generate the image of Albert Einstein above, and takes even more time for darker images that require more lines. Moreover, they have implemented matrix operations extensively to improve on the execution time from the original version, using a gigantic sparce matrix to convert from the space of edges to the space of pixels. For a 256 pin circular canvas on a 512x512 pixel image, that is a 262,144 by 130,560 matrix (assuming 4 possible edges per pin pair). This makes the code incapable of running on any computer with less than 32 GB of RAM, and even on a computer that satisfied such hardware requirements it filled 100% of the available memory.</p>
-		<p> Thus our goal was to implement the computation using specialized solvers on the FPGA, and accelerate this process significantly. Since Barton is making his hardware design open-source, this would contribute to allowing more people to build the full system without needing a high-end computer and a MATLAB license. We were successful in implementing a reduced version of the best greedy optimization algorithm that showed significant acceleration in finding the result. However, we were not able to fit the supersampling portion on the DE1-SoC's FPGA due to memory constraints. Our design is presented below as well as further steps needed to achieve an equivalent result to the MATLAB program.</p>
+		<p> <b>Thus our goal was to implement specialized solvers on the FPGA, and accelerate the computation of this greedy optimization problem.</b> Since Barton is making his hardware design open-source, this would contribute to allowing more people to build the full system without needing a high-end computer and a MATLAB license. We were successful in implementing a reduced version of the best algorithm from the paper that showed 80-100x acceleration in finding the result. However, we were not able to fit the supersampling portion on the DE1-SoC's FPGA due to memory constraints. Our design is presented below as well as further steps needed to achieve an equivalent result to the MATLAB program.</p>
 		<h2>High Level Design</h2>
 
 		<h3>Rationale</h3>
-		<p>Our project idea came from our participation in the Resistance Racing team. Larger dynamometers were commercially available, however, the team wanted to construct its own version that could be used in testing motors with different specifications. </p>
+		<p>As mentioned, we drew insipiration from Barton Dring's Youtube video <a href = https://www.youtube.com/watch?v=M1gXuKFspgY><i>A New Spin on String Art Machines</i></a>, as well as the research paper on the same topic <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/><i>String Art: Towards Computational Fabrication of String Images</i></a> by Michael Birsak, Florian Rist, Peter Wonka and Przemyslaw Musialski. </p>
 
-		<h3>Structure and Background</h3>
-		<p>The structure of our code was relatively simple in that most of the sensors run independently of one another, although they were connected by the mechanical setup. This allowed us to use a bottom-up method for programming our system; we wrote seperate scripts to test each sensor and, after those were debugged, integrated them together into a single program. The most tedious background research we had to do for this project was figuring out how to get data from the strain gauges. We researched the benefits of the different configurations of the wheatstone bridge (whose math is explained below) and decided on a half bridge. Other tradeoffs we cosidered were mechanical complexity for each choice of sensor. This problem was especially important in our determination of what type of IR sensor to use. </p>
+		<h3>Background Math</h3>
+		<center>
+			<figure>
+				<img src="./Images/edgepixel.png" alt="Edge to Pixel" style="width:400px">
+				<figcaption>Fig.3 Strings (Edges) on the Canvas (Image from Paper)</figcaption>
+			</figure>
+		</center>
+		<p>The original optimization problem is formulated in the following way: The input, y, represents all the pixels in the grascale image, each taking a decimal value in the range [0, 1] or a whole number value in [0, 255] if 8 bit depth is used. The output, x, represents a binary array for all the possible edges that can be drawn on the canvas. For simplicity we can assume that the input array is concatenated row-wise from the 2D image array. Then we assume that there is a mapping function F that transforms from space of edges to the space of pixels, which is to say that it defines which pixels on the canvas correspond to a particular edge. Fig.3 shows this relationship well. Thus, it can be cast as an optimization task of the form</p>
+		<center>
+			<figure>
+				<img src="./Images/opt1.png" alt="equation 1" style="width:150px">
+			</figure>
+		</center>
+		<p>Where the norm can take on a variety of forms. </p>
 
 		<h3>Standards</h3>
 		<p>The standards relevant to this project include the Universal Serial Bus standard and protocol to serially communicate and transfer measurements to the PC. The ASTM E251 standard for strain gages will be used as a reference for building the strain gauge based torque sensor.</p>
