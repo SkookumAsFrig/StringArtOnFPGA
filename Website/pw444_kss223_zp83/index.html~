@@ -21,12 +21,12 @@ figure figcaption {
 		<p> Our final project was inspired by a hardware invention posted on the fantastic Youtube channel <a href = https://www.youtube.com/watch?v=M1gXuKFspgY>Barton Dring</a>, in which he built a fully automated machine to manufacture circular framed "string art" pieces from a continuous thread, that look just like the rendering shown below.</p>
 		<div class="flex-container">
 			<figure>
-				<img src="./Images/einstein_ori.png" alt="Original Image" style="width:400px">
+				<img src="./Images/einstein_ori.png" alt="Original Image" style="width:300px">
 				<figcaption>Fig.1 Original Image</figcaption>
 			</figure>
 			<figure>
-				<img src="./Images/einstein_ex.png" alt="Processed Image" style="width:400px">
-				<figcaption>Fig.2 Processed String Art Image (from MATLAB code)</figcaption>
+				<img src="./Images/einstein_ex.png" alt="Processed Image" style="width:300px">
+				<figcaption>Fig.2 MATLAB Generated String Art Image</figcaption>
 			</figure>
 		</div>
 		<p> The algorithm that Barton used to derive the processed images was developed by computer graphics researchers at TU Wien (Vienna University of Technology), which is outlined in detail in this <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/>paper</a>. In it, they formulate the problem mathematically and present their trials of different optimization methods to approach a good result, which in the end is judged subjectively by the human eye (as art should be, although they do present quantitative evaluation as well).</p>
@@ -35,357 +35,407 @@ figure figcaption {
 		<h2>High Level Design</h2>
 
 		<h3>Rationale</h3>
-		<p>As mentioned, we drew insipiration from Barton Dring's Youtube video <a href = https://www.youtube.com/watch?v=M1gXuKFspgY><i>A New Spin on String Art Machines</i></a>, as well as the research paper on the same topic <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/><i>String Art: Towards Computational Fabrication of String Images</i></a> by Michael Birsak, Florian Rist, Peter Wonka and Przemyslaw Musialski. </p>
+		<p>As mentioned, we drew insipiration from Barton Dring's Youtube video <a href = https://www.youtube.com/watch?v=M1gXuKFspgY><i>A New Spin on String Art Machines</i></a>, and based much of our algorithm development on the excellent research paper <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/><i>String Art: Towards Computational Fabrication of String Images</i></a> by Michael Birsak, Florian Rist, Peter Wonka and Przemyslaw Musialski. </p>
 
 		<h3>Background Math</h3>
+		<h4>The Optimization Problem</h4>
 		<center>
 			<figure>
 				<img src="./Images/edgepixel.png" alt="Edge to Pixel" style="width:400px">
 				<figcaption>Fig.3 Strings (Edges) on the Canvas (Image from Paper)</figcaption>
 			</figure>
 		</center>
-		<p>The original optimization problem is formulated in the following way: The input, y, represents all the pixels in the grascale image, each taking a decimal value in the range [0, 1] or a whole number value in [0, 255] if 8 bit depth is used. The output, x, represents a binary array for all the possible edges that can be drawn on the canvas. For simplicity we can assume that the input array is concatenated row-wise from the 2D image array. Then we assume that there is a mapping function F that transforms from space of edges to the space of pixels, which is to say that it defines which pixels on the canvas correspond to a particular edge. Fig.3 shows this relationship well. Thus, it can be cast as an optimization task of the form</p>
+		<p>The original optimization problem is formulated in the following way by the authors of the paper: The input, y, represents all the pixels in the grascale image, each taking a decimal value in the range [0, 1] or a whole number value in [0, 255] if 8 bit depth is used. The output, x, represents a binary array for all the possible edges that can be drawn on the canvas. Note the binary assumption is important, meaning that an edge cannot be drawn twice. For simplicity we can assume that the input array is concatenated row-wise from the 2D image array. Then we assume a mapping function F that transforms from space of edges to the space of pixels, which is to say that it defines which pixels on the canvas correspond to a particular edge. Fig.3 shows this relationship well. There are two key algorithms used for discrete line drawing: Bresenham, which is binary, and Xiaolin Wu, which is weighted and anti-aliased. The optimization task can then be cast as the following:</p>
 		<center>
 			<figure>
-				<img src="./Images/opt1.png" alt="equation 1" style="width:150px">
+				<img src="./Images/opt1.png" alt="equation 1" style="width:125px">
 			</figure>
 		</center>
-		<p>Where the norm can take on a variety of forms. </p>
-
-		<h3>Standards</h3>
-		<p>The standards relevant to this project include the Universal Serial Bus standard and protocol to serially communicate and transfer measurements to the PC. The ASTM E251 standard for strain gages will be used as a reference for building the strain gauge based torque sensor.</p>
-
-		<h2>Software and Hardware Design</h2>
-
-		<h3>Hardware Overview </h3>
-		<p>The hardware for this project is a mechanical setup consisting of a metal base plate and five supports. Images of our final setup is shown below, together with CAD renderings: </p>
+		<p>Where the norm can take on a variety of forms. The first approach that the paper experimented with is minimizing the linear least squares difference, with A being the linear mapping from edges to pixels using Xiaolin Wu algorithm:</p>
 		<center>
-			<img src="./Images/CAD1.jpg" alt="mechanical setup, side view" style="width:574px;height:300px;"> 
-			<img src="./Images/CAD2.jpg" alt="mechanical setup, side view" style="width:357px;height:300px;"> 
+			<figure>
+				<img src="./Images/opt2.png" alt="equation 2" style="width:125px">
+			</figure>
 		</center>
+		<p>This quadratic function can be easily and efficiently solved if the number of pixels is greater than the number of unique edges. However, the result x is not constrained to the binary output that we need (can be larger than 1 or negative), so one way is to clamp the output to binary 0 or 1. A great deal of precision is lost in this step, and the image from the first approach is far from satisfactory (Fig.4, c).</p>
 		<center>
-			<img src="./Images/setup_side.jpg" alt="mechanical setup, side view" style="width:742px;height:300px;"> 
-			<img src="./Images/setup_front.jpg" alt="mechanical setup, front view" style="width:400px;height:300px;"> 
+			<figure>
+				<img src="./Images/fig3.png" alt="PaperFig3" style="width:800px">
+				<figcaption>Fig.4 Results Comparison of Different Algorithms (Image from Paper with Our Comments)</figcaption>
+			</figure>
 		</center>
+		<p>At this point the authors present two key characteristics that have a large impact on the quality of images: binary optmization and expressive range.</p> 
+		<p>First, since the final image is formed by the binary process of either keeping or removing a possible edge, optimization must also adhere to it in order to retain accuracy. This means choosing binary optimization schemes instead of rounding unbounded results. Second, the image fidelity is mainly held back by the lack of expressive range of individual edges. Even if Xiaolin Wu is used instead of Bresenham for drawing edges, the pixels corresponding to a line easily accumulate values larger than 1 when intersected meaning pure black. This is problematic as the canvas will be strongly contrasted between pure white and pure black, and grayscale details of the original image get lost. It might be reasonable to think that such a problem will be solved by going to a higher dimensional space, by supersampling the original image and drawing on an equally large canvas. While it does match details much more closely, ie. Fig.4 (g) vs. (f), it does not solve the fundamental problem of expressing intermediate tones.</p>
+		<p>The real solution, which the paper used on the last 3 images, is to draw lines on the supersampled canvas, then downsample to enlarge expressive range of each pixel, and perform the difference calculation in the lower dimension space. Fig.4 (h) is their result using a downsampled unclamped integer programming scheme (meaning the pixel values are not capped at 1 when calculating difference) running on the pre-existing GUROBI library. It seems like the unclamped condition was necessary to use the library, and certainly not ideal as overlapping lines can enlarge errors mathematically while in reality the maximum darkness is 1. So the algorithm will not shade dark areas as much as it needs to. Fig.4 (i) is just double-checking their GUROBI implementation, while Fig.4 (j) is their custom downsampled clamped integer gramming optimization.</p>
+		<p>The clamped implementation is certainly better, as Fig.4 (j) recreates dark areas with much higher fidelity. Below is the final optimization formulation, with the swiggle A being the supersampling matrix, C being the clamping operator, and D being the downsampling. The paper also talks about implementing a weighted importance map to accentuate facial features, but we can ignore that for our implementation.</p>
 		<center>
-			<img src="./Images/setup_top.jpg" alt="mechanical setup labeled, top view" style="width:1000px;height:500px;">
+			<figure>
+				<img src="./Images/opt3.png" alt="equation 3" style="width:150px">
+			</figure>
 		</center>
-		<p>The setup consists of two coaxial shafts, one fixed and one free to rotate, secured radially by large roller bearings. The supports (except for the motor mount) are slotted to allow for clamping on the shaft and bearings for retainment. The solid shaft is attached to the motor via a lovejoy-style shaft coupler and rotates freely, but is axially constrained by the motor. For RPM data collection, a 3D printed slotted disc is fitted over the rotating shaft and a photointerrupter is mounted on to the supports such that it is "interrupted" by the slotted disc. As the shaft spins, the obstructions and slotted areas of the disc change the voltage read by the receiving end of the photointerrupter, allowing us to track angular speed. The other end of the free shaft, in the center of the mechanical setup, is a 410-stainless disc-brake that rotates with the shaft. It interfaces with the electronically actuated brake system, on which two servos control a set of bicycle brakes (by pulling on steel braided wires) to deliver load on the disc-brake. The actuating portion of the brake system is attached rigidly (with epoxy) to a thin aluminum tube which is fixed via clamping on the other end. The strain gauges are then mounted on the thin aluminum tube, where they are able to sense any material strain due to torque. Because the measurement shaft is fixed radially, any bending and off-axis loads will be negated by the bearing support and will not influence the section of aluminum tube onto which the gages are attached. Here is a clear rendering of the fixed servo-brake system:</p> 
-
+		<p>Solving this requires a new algorithm. The authors chose to implement a greedy approach, and to ensure optimality the addition and removal of edges are interchanged when one no longer reduces the difference. A more understandable version of the pseudo-code is shown below:</p>
 		<center>
-			<img src="./Images/CAD4.jpg" alt="mechanical setup, side view" style="width:604px;height:400px;"> 
-			<img src="./Images/CAD5.jpg" alt="mechanical setup, front view" style="width:626px;height:400px;"> 
+			<figure>
+				<img src="./Images/opt4.png" alt="equation 4" style="height:125px">
+			</figure>
 		</center>
+		<!--
+	  <pre><b>Initial supersampled white canvas;
+Initial stage add;
+While (either add or remove stage still reduce difference with original image) do
+	(Latched) add/remove one best edge for reducing downsampled difference with image, return reduced difference and new canvas;
+	if (reduced difference is 0 or negative)
+		Flip next stage to opposite;
+	end
+end</b></pre>
+	  -->
+	  <p>The latched add/remove state simply means that algorithm will repeat its last operation unless signaled to change when there is no longer reduction. Thus the optimization problem is complete.</p>
+
+	  <h4>Bresenham's Algorithm</h4>
+
+	  <p>We chose to implement Bresenham's algorithm in our design, the reasons of which will be explained later. Below is a pseudo-code for the most common version. The derivations are shown <a href = https://www.youtube.com/watch?v=RGB-wlatStc>here</a>. Note that for slope greater than 1, simply exchange the x and y inputs and also exchange the x and y outputs.</p>
+	  <center>
+		  <figure>
+			  <img src="./Images/opt5.png" alt="equation 5" style="height:250px">
+		  </figure>
+	  </center>
+	  <!--
+	   <pre><b>Bresenham_Algo(x1, y1, x2, y2)
+	o_x = x1;
+	o_y = y1;
+	dx = x2-x1;
+	dy = y2-y1;
+	P = 2dy-dx;
+	While (o_x<=x2)
+		Output pixel (o_x, o_y);
+		o_x++;
+		if (P<0)
+			P = P+2dy;
+		else
+			P = P+2dy-2dx;
+			o_y++;
+		end
+	end
+end</b></pre>
+	   -->
+	   <h3>Logical Structure</h3>
+	   <p>Talk about storage needed for each step.</p>
+
+	   <h3>Hardware/Software Tradeoffs</h3>
+	   <p>Talk about fetch speed vs storage for each step.</p>
+
+	   <h3>Patents/Copyrights</h3>
+	   <p>There are no patents that we are aware of relating to this project. However, there have been previous work done on this topic in addition to the research paper that we extensively referenced. Artist <a href = http://artof01.com/vrellis/works/knit.html>Petros Vrellis</a> has written his own algorithm for hand production of the same type of string art, even for <a href = https://www.saatchiart.com/account/artworks/858823>colored versions</a>. He has also collaborated with a father and son duo of MIT professors to create the <a href = http://erikdemaine.org/fonts/stringart/>String Art Font</a>.</p>
+
+	   <h2>Software and Hardware Design</h2>
+
+	   <h3>Hardware Overview </h3>
+	   <p>The hardware for this project is a mechanical setup consisting of a metal base plate and five supports. Images of our final setup is shown below, together with CAD renderings: </p>
+	   <p>The setup consists of two coaxial shafts, one fixed and one free to rotate, secured radially by large roller bearings. The supports (except for the motor mount) are slotted to allow for clamping on the shaft and bearings for retainment. The solid shaft is attached to the motor via a lovejoy-style shaft coupler and rotates freely, but is axially constrained by the motor. For RPM data collection, a 3D printed slotted disc is fitted over the rotating shaft and a photointerrupter is mounted on to the supports such that it is "interrupted" by the slotted disc. As the shaft spins, the obstructions and slotted areas of the disc change the voltage read by the receiving end of the photointerrupter, allowing us to track angular speed. The other end of the free shaft, in the center of the mechanical setup, is a 410-stainless disc-brake that rotates with the shaft. It interfaces with the electronically actuated brake system, on which two servos control a set of bicycle brakes (by pulling on steel braided wires) to deliver load on the disc-brake. The actuating portion of the brake system is attached rigidly (with epoxy) to a thin aluminum tube which is fixed via clamping on the other end. The strain gauges are then mounted on the thin aluminum tube, where they are able to sense any material strain due to torque. Because the measurement shaft is fixed radially, any bending and off-axis loads will be negated by the bearing support and will not influence the section of aluminum tube onto which the gages are attached. Here is a clear rendering of the fixed servo-brake system:</p> 
+
+	   <p>The disc itself is attached to an aluminum adapter with flathead screws for clearance, which is then fixed on the rotating shaft with a set-screw. Care was taken in the design stage to make sure all interfaces can be assembled smoothly and any alignment errors can be adjusted manually. For example, the through holes in the bottom plate were made extra-large to allow for compensation of the shaft concentricity in multiple axis. Moreover, extra room for the purchased bicycle brakes allowed us to fine tune both the brake clearance and engagement so both calipers exerted approximately the same load. </p>
+
+	   <p>Engineering drawing were made from the CAD model and almost everything was custom machined by us and Resistance Racing team members in Cornell's Emerson Machine Shop. The bottom plate was made out of solid 6061 T6 aluminum, and so were the 5 motor/bearing stands. The rotating shaft was a piece of tight tolerance high-speed-steel, and the brake-shaft adapter was made from 6061 aluminum. The main body of the brake system was milled out of a chunk of 7075 T651 aluminum stock, and the servo mounts were made out of 6061 aluminum. The brake disc itself was made from 410 stainless stock, which we CNCed in order to obtain +- 0.001" flatness with the circular profile (measured on a lathe with dial indicators). The fixed shaft is a piece of turned and sanded aluminum 3003 thin-walled tube, which was chosen specifically for its strain under torsion, detailed in the next section.</p>
+
+	   <p>We chose to manufacture almost everything out of metal since we want the best rigidity under dynamic loading conidtions. For the brake, 410 stainless was chosen because it is wear-resistance and a common material for bicycle disc-brakes. For the rotating shaft, we chose a very hard and tough steel since we did not want it to wear and cause vibrations. Some members of the project team also ran some thermal calculations on the disc-brake, and it was capable of dissipating 2000W+ for 5-10 seconds without getting excessively hot (<100 Celsius). Lastly, we ran some statics calculations on the fixed shaft and disc brake epoxy joint, and with our choice of gorilla epoxy, there is a safety factor of over 7 with 5 N-m of torque (our upper range of motor torque measurement).</p>
+
+	   <p>In terms of the electronic hardware, the intrumentation circuitry for the strain gauges was attached close to the mechanical setup to eliminate noise that may arise from long wires. Any critical signal wires carrying micro-volt signals were shielded and grounded with an aluminum foil jacket. The circuitry used includes a wheatstone bridge and instrumentation amplifier as described in the sections below. The RPM/angular speed is captured by a photointerrupter, the current is being read through a hall-effect current sensor, and the supply voltage is measured from a voltage divider directly into the PIC32's ADC. Custom 3D-printed enclousures for each circuit board was design and mounted as well. The instrumentation amplifier used is the INA121 from Texas Instruments, the digital potentiometer used is the AD5231 from Analog Devices, the strain gage used is the EA-XX-125TK-350 from Vishay, the current sensor used is the ACS758 from Allegre MicroSystems,and the photointerrupter is the GP1A57HRJ00F from Sharp.</p>
+
+	   <p>Although the system would function on 2 power supplies, we opted to go with 4 due to adjustability. The high-current supply was used to drive the motor, capable of drawing over 20 amps. The low powered supply was used to drive the servos, which operate best at 6V. One triple output power supply was used to drive the instrumentation amplifier and the digital potentiometer at +- 3.3V, while another acted as the excitation supply for the strain gages. The reason why we used 2 triple-output supplies was because we decided to filter the excitation source, which dropped the supply voltage going into the wheatstone brdige and thus needed to be turned up to 8-10V for the same results.The second triple supply was also used to power the cooling fan for the motor.All the grounds are connected together for common ground with the MCU ground, especially important for the instrumentation amplifier and the ADC.Care was taken so that the higher voltages were isolated and would not fry the MCU.</p>
+
+	   <h3>Strain Gauges and Wheatstone Bridge</h3>
+
+	   <h4> Reading Change in Resistance</h4>
+	   <p> In order to measure torque and strain on the shaft we used two strain gauges (packaged into one pad), which measure small values of strain on an object. As torque is applied to the shaft, the foil/wire that makes up the strain gauge undergoes tension or compression which results in a change in electrical resistance. </p>
+	   <p> To measure change in resistance, we use the gauge factor, a property that determines sensitivity of the gauge. The gauge factor, GF is equal to the change in resistance divided by the resistance at no load divided by the strain. The equation is: 
+	   <img src="./Images/gauge_factor_eqn.png" alt="gauge factor eqn" style="width:60px;height:40px;">. The standard gauge factor used is 2, and the change in resistance can be as small as microhms.</p>
+
+	   <p> To measure such small changes, a wheatstone bridge circuit is traditionally used. A wheatstone bridge circuit balances two legs of a bridge circuit in which one or more resistances can be variable.
+	   A simple example is the quarter bridge circuit in which there are three passive resistors and active resistor: 
+	   <br>
+	   <center>
+		   <img src="./Images/passive_bridge.png" alt="passive bridge" style="width:300px;height:300px;"> 
+	   </center>
+	   <br>
+	   Here, the ratio of R1/R2 must be equal to R4/R3 since Vo is zero and the circuit is balanced. Consequently, any change in resistance will unbalance the bridge and result in a nonzero output voltage. 
+	   In this example, if we replace R3 with a strain gauge, then R3 = Rd + Rg, where Rd is the change in resistance and Rg is the nominal resistance of the strain gauge. Assume that R1 = R4 and R2 = R3 = Rg when Rd = 0 such that Rd = Rg*GF*e (gauge factor equation rearranged). 
+	   Thus, we can re-write the passive bridge equation as a function of strain:
+	   <br>
+	   <center>
+		   <img src="./Images/quarter_bridge.png" alt="quarter bridge eqn" style="width:250px;height:70px;">
+	   </center>
+	   <br>
+	   For our system, we decided to use two strain gauges where one gauge undergoes compression and the other tension to increase sensitivity of the bridge. The other half of the bridge would be used for self-balancing, with a variable quarter resistance through something like a digital potentiometer and the other quarter be static.This way we have the software be auto-balancing and zeroing upon system initialization. An example of this configuration is:
+	   <br>
+	   <center>
+		   <img src="./Images/half_bridge.jpg" alt="half bridge" style="width:371px;height:250px;">
+	   </center>
+	   <br>
+	   See "National Instruments Guide on Strain Gages" in the citation for more information.
+	   <br>
+	   <br>
+	   On the shaft itself, the strain gauges are mounted +- 45 degrees to the torsion axis because in pure torsion, the maximum normal stress due to transverse shear stress occurs at 45 degrees to the original plane. Thus, 45 degrees from the shaft's axis is where the measured stress directly correlates to the applied torque. In solid mechanics, we know that shear stress = T*C/J, where J is polar moment of inertia, T is torque and C is radius, and stress = elastic modulus*strain (from Mohr's Circle for pure torsion). A simple mechanics calculation was done in MATLAB on the tube size needed for the range of strains we desired, and we settled on 0.5" OD 0.468" ID, which gave us 2000 microstrains at the max torque of 5N-m, and has a factor of safety of 1.5. A diagram of the gage pattern can be seen below (real size about 5*10mm):</p>
+	   <center>
+		   <img src="./Images/gage.jpg" alt="half bridge" style="width:250px;height:325px;">
+	   </center>
+	   <br>
+	   For tuning the torque sensor system, instead of working out the math precisely, we simply hung a 500ml bottle of water at a known distance from the axis, and found the ratio between ADC readings and the expected torque value (0.4165 N-m). It was quite repeatable, to within 0.03 N-m between calibrations.
+	   <br>
+
+	   <center>
+		   <img src="./Images/Calib.jpg" alt="half bridge" style="width:464px;height:604px;">
+	   </center>
+
+	   <br>
+	   <h4> Amplification of Signal </h4>
+	   Since the change in resistance is relatively small, we chose to use an instrumentation amplifier to amplify the output voltage of the Wheatstone Bridge. An instrumentation amplifier has two input buffers to filter out input impedance and a differential amplifier stage.
+	   <br>
+	   <center>
+		   <img src="./Images/inst_amp.png" alt="instrumentation amplifier example" style="width:400px;height:300px;">
+	   </center>
+	   <br>
+	   The negative feedback of the upper op amp results in the voltage above Rgain to be equal to V1 while the voltage at the bottom of Rgain is equal to V2. This results in a voltage drop across Rgain, which in turn is equal to the voltage difference between V1 and V2. This causes a current through Rgain as well as current through the R1 resistors producing a voltage drop between the outputs of the buffer op amps.
+	   This voltage drop is the input to the differential amplifier which amplifies the signal by a gain of 1 (if all resistor values are the same). Since the voltage drop is dependent on R1 and Rgain, Rgain can be adjustable and thus control the overall gain of the amplifier. 
+	   <br>
+	   <center>
+		   <img src="./Images/inst_amp_gain.png" alt="instrumentation amplifier gain eqn" style="width:750px;height:180px;">
+	   </center>
+	   <br>
+	   <br>
+	   We chose a gain of 500 (using a 100 Ohm resistor) since with an excitation voltage of 3V, we expect a delta of 1-2mV at the half bridge output before amplification, at the max torque spec of the small brushed motor (0.1-0.2 N-m). This translates to about 0.5-1V of output at the amplifier out, which is measureable by the ADC. We also mounted a set of sockets on the solder board so that we can plug in additional resistors and change the gain in the future for different measurement ranges. In the final setup we found that we could run it with a higher excitation voltage with no problems at around 5V (after the low pass filter, 9V from power supply), but kept the gain the same as it did not saturate the amp.
+	   <br>
+
+	   <h4> Testing Initial Design </h4>
+	   <p> Before we tested with strain gauges, we built a quarter bridge with a 10K potentiometer as our active component. We achieved a gain of approximately 100 with this test circuit, so we then mounted two strain gauges on the shaft, and transferred our circuit to a breadboard. However, we found that the potentiometer was difficult to tune and keep stable.
+	   <p> To achieve finer resolution, we used a <a href= https://www.digikey.com/product-detail/en/analog-devices-inc/AD5231BRUZ10-REEL7/AD5231BRUZ10-REEL7CT-ND/3314098> digital potentiometer</a> which has 10-bit resolution for the self-balancing quarter of the static half of the bridge. We interfaced with the potentiometer using SPI, and used the chip select (RB4), Clock (RB15) and Serial Data Output (RB5) on the PIC32. By sending 32 bit control words with MSB as 0xE or 0x6 (as seen from AD5231 data sheet), we can command it to either increase or decrease the resistance by 1/1024 levels. Combined with a simple conditional statement in a loop, the circuit becomes self balancing. By putting this 10k digipot (measured 8.6k) in series with 15 kOhm resistors (one quarter of the bridge) and balancing that against a 20 kOhm resistor (the other quarter of the bridge), we were able to achieve a theoretical balance accuracy of 0.05%. In practice it was closer to 4-5% accuracy, possibly due to noisey power supplies or amplifier drift.</p>
+	   <h4> Final Design </h4> 
+	   <p>Our final circuit design with adjusted resistor values was the following: </p>
+
+	   <center>
+
+		   <img src="./Images/final_strain_circuit.png" alt="final strain circuit" style="width:1104px;height:616px;">
+
+	   </center>
+
+	   <p>The labeled instrumentation circuit minus the filters can be seen below: </p>
+
+	   <center>
+
+		   <img src="./Images/Instru.jpg" alt="final strain circuit" style="width:540px;height:303.5px;">
+
+	   </center>
+
+	   <h4> Filtering noise </h4>
+
+	   To filter noise at both the input to the wheatston bridge and output of the amplifier, we implemented 2 identical low pass RC circuits with cut off frequencies of approximately 20 Hz. The resistors were 800 ohms and the capacitor values were 10 uF.
+
+
+	   <h3> Measuring Torque </h3>
+	   <p>
+	   The output of the instrumentation amplifier plus filter is wired to the third ADC channel on the PIC. In the currSensor thread, the raw adc value is read approximately 120 seconds after the program has started. The raw_p value is used to determine and filter the strain on the shaft. The equation for this IIR filter is: strain_filt = strain_filt + (raw_p - strain_filt)/16, where strain_filt is the filtered strain value, raw_p is the raw adc input and 16 is a set prescale. strain_filt is initialized to init_strain which is the first raw_p value read when the 120 sec counter runs out. Then, torque is calculated by taking the difference of the current strain_filt and the init_strain (initial strain) and dividing by 156. The 156 was determined by the water bottle method described above.
+	   </p>
+	   <p>	
+
+
+	   <h3>Measuring Current</h3>
+	   <p> We measured the current from our motor voltage source using a Hall Effect Current Sensor. The datasheet for the sensor we used can be downloaded from <a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> here</a> under the datasheets tab on the side, here's the pin diagram of the sensor taken from the datasheet:
+	   <br>
+	   <center>
+		   <img src="./Images/current_sensor_pinout.jpg" alt="current sensor" style="width:1000px;height:300px;"> 
+	   </center>
+	   <br>
+	   The Hall Effect Current Sensor outputs a voltage level that is proportional to the input current. The current to be measured is run through the two large pins on the left side of the diagram and the corresponding voltage is measured from VIOUT and GND on the other side. This voltage is fed to an ADC on the PIC32 to be used in further calculations.
+	   <br>
+	   <br>
+	   Additional calculation and calibration is required, however, to convert the ADC readings into amps. The calibration process we used was based off of this <a href=https://www.youtube.com/watch?v=spnl7JInMXc> video</a>
+	   <br>
+	   <br>
+	   To convert the ADC reading, we first put the reading in terms of voltage. This is a simple conversion ratio matching the upper limit of the ADC (1024) to the supply voltage used (in this case 3.3 V). Next to makes this value in terms of current, we must find the change in amps corresponding to a given increase in voltage. To find this, we applied a current source set to every 0.25 amps from 0 to 2 A and measured the voltage read from the sensor. Once enough trials are collected, we then calculate the average change in voltage per amp and use that as our conversion factor. The datasheet lists the sensitivity of this part as 40 mV/A and our testing confirmed this value. One last step for calibration is accounting for the offset in the ADC measurements when no current is applied. This can be done either through hardware or software; we tried both options, and found that the software offset resulted in the correct amperage readings while the hardware offset did not.
+	   <br>
+	   <br>
+	   The software offset is done by measuring the ADC value seen with no current applied on the left terminals; during our testing, we saw and ADC value of 128. We then hard-coded it to subtract this value from all subsequent ADC measurements used in calculation of voltage and current. In summary, here are the calculations required for calibration.
+	   <br>
+	   <br>
+	   <center>
+		   adc_raw = adc reading - 128
+		   <br>
+		   voltage reading = adc_raw * (3.3V / 1024)
+		   <br>
+		   current reading = voltage reading / (0.040 V / 1 A)
+	   </center>
+	   </p> 
+
+	   <h3>Measuring Voltage</h3>
+	   <p> The input voltage to the motor is measured by connecting a wire parallel to the positive terminal of the power supply, which is then put through a 1:3 voltage divider made up of high resistance resistors, with the output being a quarter of the input voltage. This is to protect the MCU if we decide to run the motor as high as 12V. The output is then measured by the ADC, and calculation is done to reverse the voltage divider to get the voltage that the motor is acutally seeing.</p>
 
-		<p>And the rotating portion that is being braked (Note: motor not in rendering):</p>
-
-		<center>
-			<img src="./Images/CAD6.jpg" alt="mechanical setup labeled, top view" style="width:672px;height:400px;">
-		</center>
-
-		<p>The disc itself is attached to an aluminum adapter with flathead screws for clearance, which is then fixed on the rotating shaft with a set-screw. Care was taken in the design stage to make sure all interfaces can be assembled smoothly and any alignment errors can be adjusted manually. For example, the through holes in the bottom plate were made extra-large to allow for compensation of the shaft concentricity in multiple axis. Moreover, extra room for the purchased bicycle brakes allowed us to fine tune both the brake clearance and engagement so both calipers exerted approximately the same load. </p>
-
-		<p>Engineering drawing were made from the CAD model and almost everything was custom machined by us and Resistance Racing team members in Cornell's Emerson Machine Shop. The bottom plate was made out of solid 6061 T6 aluminum, and so were the 5 motor/bearing stands. The rotating shaft was a piece of tight tolerance high-speed-steel, and the brake-shaft adapter was made from 6061 aluminum. The main body of the brake system was milled out of a chunk of 7075 T651 aluminum stock, and the servo mounts were made out of 6061 aluminum. The brake disc itself was made from 410 stainless stock, which we CNCed in order to obtain +- 0.001" flatness with the circular profile (measured on a lathe with dial indicators). The fixed shaft is a piece of turned and sanded aluminum 3003 thin-walled tube, which was chosen specifically for its strain under torsion, detailed in the next section.</p>
-
-		<p>We chose to manufacture almost everything out of metal since we want the best rigidity under dynamic loading conidtions. For the brake, 410 stainless was chosen because it is wear-resistance and a common material for bicycle disc-brakes. For the rotating shaft, we chose a very hard and tough steel since we did not want it to wear and cause vibrations. Some members of the project team also ran some thermal calculations on the disc-brake, and it was capable of dissipating 2000W+ for 5-10 seconds without getting excessively hot (<100 Celsius). Lastly, we ran some statics calculations on the fixed shaft and disc brake epoxy joint, and with our choice of gorilla epoxy, there is a safety factor of over 7 with 5 N-m of torque (our upper range of motor torque measurement).</p>
-
-		<p>In terms of the electronic hardware, the intrumentation circuitry for the strain gauges was attached close to the mechanical setup to eliminate noise that may arise from long wires. Any critical signal wires carrying micro-volt signals were shielded and grounded with an aluminum foil jacket. The circuitry used includes a wheatstone bridge and instrumentation amplifier as described in the sections below. The RPM/angular speed is captured by a photointerrupter, the current is being read through a hall-effect current sensor, and the supply voltage is measured from a voltage divider directly into the PIC32's ADC. Custom 3D-printed enclousures for each circuit board was design and mounted as well. The instrumentation amplifier used is the INA121 from Texas Instruments, the digital potentiometer used is the AD5231 from Analog Devices, the strain gage used is the EA-XX-125TK-350 from Vishay, the current sensor used is the ACS758 from Allegre MicroSystems,and the photointerrupter is the GP1A57HRJ00F from Sharp.</p>
-
-		<p>Although the system would function on 2 power supplies, we opted to go with 4 due to adjustability. The high-current supply was used to drive the motor, capable of drawing over 20 amps. The low powered supply was used to drive the servos, which operate best at 6V. One triple output power supply was used to drive the instrumentation amplifier and the digital potentiometer at +- 3.3V, while another acted as the excitation supply for the strain gages. The reason why we used 2 triple-output supplies was because we decided to filter the excitation source, which dropped the supply voltage going into the wheatstone brdige and thus needed to be turned up to 8-10V for the same results.The second triple supply was also used to power the cooling fan for the motor.All the grounds are connected together for common ground with the MCU ground, especially important for the instrumentation amplifier and the ADC.Care was taken so that the higher voltages were isolated and would not fry the MCU.</p>
-
-		<h3>Strain Gauges and Wheatstone Bridge</h3>
-
-		<h4> Reading Change in Resistance</h4>
-		<p> In order to measure torque and strain on the shaft we used two strain gauges (packaged into one pad), which measure small values of strain on an object. As torque is applied to the shaft, the foil/wire that makes up the strain gauge undergoes tension or compression which results in a change in electrical resistance. </p>
-		<p> To measure change in resistance, we use the gauge factor, a property that determines sensitivity of the gauge. The gauge factor, GF is equal to the change in resistance divided by the resistance at no load divided by the strain. The equation is: 
-		<img src="./Images/gauge_factor_eqn.png" alt="gauge factor eqn" style="width:60px;height:40px;">. The standard gauge factor used is 2, and the change in resistance can be as small as microhms.</p>
-
-		<p> To measure such small changes, a wheatstone bridge circuit is traditionally used. A wheatstone bridge circuit balances two legs of a bridge circuit in which one or more resistances can be variable.
-		A simple example is the quarter bridge circuit in which there are three passive resistors and active resistor: 
-		<br>
-		<center>
-			<img src="./Images/passive_bridge.png" alt="passive bridge" style="width:300px;height:300px;"> 
-		</center>
-		<br>
-		Here, the ratio of R1/R2 must be equal to R4/R3 since Vo is zero and the circuit is balanced. Consequently, any change in resistance will unbalance the bridge and result in a nonzero output voltage. 
-		In this example, if we replace R3 with a strain gauge, then R3 = Rd + Rg, where Rd is the change in resistance and Rg is the nominal resistance of the strain gauge. Assume that R1 = R4 and R2 = R3 = Rg when Rd = 0 such that Rd = Rg*GF*e (gauge factor equation rearranged). 
-		Thus, we can re-write the passive bridge equation as a function of strain:
-		<br>
-		<center>
-			<img src="./Images/quarter_bridge.png" alt="quarter bridge eqn" style="width:250px;height:70px;">
-		</center>
-		<br>
-		For our system, we decided to use two strain gauges where one gauge undergoes compression and the other tension to increase sensitivity of the bridge. The other half of the bridge would be used for self-balancing, with a variable quarter resistance through something like a digital potentiometer and the other quarter be static.This way we have the software be auto-balancing and zeroing upon system initialization. An example of this configuration is:
-		<br>
-		<center>
-			<img src="./Images/half_bridge.jpg" alt="half bridge" style="width:371px;height:250px;">
-		</center>
-		<br>
-		See "National Instruments Guide on Strain Gages" in the citation for more information.
-		<br>
-		<br>
-		On the shaft itself, the strain gauges are mounted +- 45 degrees to the torsion axis because in pure torsion, the maximum normal stress due to transverse shear stress occurs at 45 degrees to the original plane. Thus, 45 degrees from the shaft's axis is where the measured stress directly correlates to the applied torque. In solid mechanics, we know that shear stress = T*C/J, where J is polar moment of inertia, T is torque and C is radius, and stress = elastic modulus*strain (from Mohr's Circle for pure torsion). A simple mechanics calculation was done in MATLAB on the tube size needed for the range of strains we desired, and we settled on 0.5" OD 0.468" ID, which gave us 2000 microstrains at the max torque of 5N-m, and has a factor of safety of 1.5. A diagram of the gage pattern can be seen below (real size about 5*10mm):</p>
-		<center>
-			<img src="./Images/gage.jpg" alt="half bridge" style="width:250px;height:325px;">
-		</center>
-		<br>
-		For tuning the torque sensor system, instead of working out the math precisely, we simply hung a 500ml bottle of water at a known distance from the axis, and found the ratio between ADC readings and the expected torque value (0.4165 N-m). It was quite repeatable, to within 0.03 N-m between calibrations.
-		<br>
-
-		<center>
-			<img src="./Images/Calib.jpg" alt="half bridge" style="width:464px;height:604px;">
-		</center>
-
-		<br>
-		<h4> Amplification of Signal </h4>
-		Since the change in resistance is relatively small, we chose to use an instrumentation amplifier to amplify the output voltage of the Wheatstone Bridge. An instrumentation amplifier has two input buffers to filter out input impedance and a differential amplifier stage.
-		<br>
-		<center>
-			<img src="./Images/inst_amp.png" alt="instrumentation amplifier example" style="width:400px;height:300px;">
-		</center>
-		<br>
-		The negative feedback of the upper op amp results in the voltage above Rgain to be equal to V1 while the voltage at the bottom of Rgain is equal to V2. This results in a voltage drop across Rgain, which in turn is equal to the voltage difference between V1 and V2. This causes a current through Rgain as well as current through the R1 resistors producing a voltage drop between the outputs of the buffer op amps.
-		This voltage drop is the input to the differential amplifier which amplifies the signal by a gain of 1 (if all resistor values are the same). Since the voltage drop is dependent on R1 and Rgain, Rgain can be adjustable and thus control the overall gain of the amplifier. 
-		<br>
-		<center>
-			<img src="./Images/inst_amp_gain.png" alt="instrumentation amplifier gain eqn" style="width:750px;height:180px;">
-		</center>
-		<br>
-		<br>
-		We chose a gain of 500 (using a 100 Ohm resistor) since with an excitation voltage of 3V, we expect a delta of 1-2mV at the half bridge output before amplification, at the max torque spec of the small brushed motor (0.1-0.2 N-m). This translates to about 0.5-1V of output at the amplifier out, which is measureable by the ADC. We also mounted a set of sockets on the solder board so that we can plug in additional resistors and change the gain in the future for different measurement ranges. In the final setup we found that we could run it with a higher excitation voltage with no problems at around 5V (after the low pass filter, 9V from power supply), but kept the gain the same as it did not saturate the amp.
-		<br>
-
-		<h4> Testing Initial Design </h4>
-		<p> Before we tested with strain gauges, we built a quarter bridge with a 10K potentiometer as our active component. We achieved a gain of approximately 100 with this test circuit, so we then mounted two strain gauges on the shaft, and transferred our circuit to a breadboard. However, we found that the potentiometer was difficult to tune and keep stable.
-		<p> To achieve finer resolution, we used a <a href= https://www.digikey.com/product-detail/en/analog-devices-inc/AD5231BRUZ10-REEL7/AD5231BRUZ10-REEL7CT-ND/3314098> digital potentiometer</a> which has 10-bit resolution for the self-balancing quarter of the static half of the bridge. We interfaced with the potentiometer using SPI, and used the chip select (RB4), Clock (RB15) and Serial Data Output (RB5) on the PIC32. By sending 32 bit control words with MSB as 0xE or 0x6 (as seen from AD5231 data sheet), we can command it to either increase or decrease the resistance by 1/1024 levels. Combined with a simple conditional statement in a loop, the circuit becomes self balancing. By putting this 10k digipot (measured 8.6k) in series with 15 kOhm resistors (one quarter of the bridge) and balancing that against a 20 kOhm resistor (the other quarter of the bridge), we were able to achieve a theoretical balance accuracy of 0.05%. In practice it was closer to 4-5% accuracy, possibly due to noisey power supplies or amplifier drift.</p>
-		<h4> Final Design </h4> 
-		<p>Our final circuit design with adjusted resistor values was the following: </p>
-
-		<center>
-
-			<img src="./Images/final_strain_circuit.png" alt="final strain circuit" style="width:1104px;height:616px;">
-
-		</center>
-
-		<p>The labeled instrumentation circuit minus the filters can be seen below: </p>
-
-		<center>
-
-			<img src="./Images/Instru.jpg" alt="final strain circuit" style="width:540px;height:303.5px;">
-
-		</center>
-
-		<h4> Filtering noise </h4>
-
-		To filter noise at both the input to the wheatston bridge and output of the amplifier, we implemented 2 identical low pass RC circuits with cut off frequencies of approximately 20 Hz. The resistors were 800 ohms and the capacitor values were 10 uF.
-
-
-		<h3> Measuring Torque </h3>
-		<p>
-		The output of the instrumentation amplifier plus filter is wired to the third ADC channel on the PIC. In the currSensor thread, the raw adc value is read approximately 120 seconds after the program has started. The raw_p value is used to determine and filter the strain on the shaft. The equation for this IIR filter is: strain_filt = strain_filt + (raw_p - strain_filt)/16, where strain_filt is the filtered strain value, raw_p is the raw adc input and 16 is a set prescale. strain_filt is initialized to init_strain which is the first raw_p value read when the 120 sec counter runs out. Then, torque is calculated by taking the difference of the current strain_filt and the init_strain (initial strain) and dividing by 156. The 156 was determined by the water bottle method described above.
-		</p>
-		<p>	
-
+	   <p> To get voltage, current sensor and strain gage to work together, we needed 3 ADC channels. However, the conventional method with muxes only allows up to 2. Thus we had to switch ADC to SCAN mode, and read the scanned results in buffers 0, 1 and 2 for the 3 ADC results.</p>
 
-		<h3>Measuring Current</h3>
-		<p> We measured the current from our motor voltage source using a Hall Effect Current Sensor. The datasheet for the sensor we used can be downloaded from <a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> here</a> under the datasheets tab on the side, here's the pin diagram of the sensor taken from the datasheet:
-		<br>
-		<center>
-			<img src="./Images/current_sensor_pinout.jpg" alt="current sensor" style="width:1000px;height:300px;"> 
-		</center>
-		<br>
-		The Hall Effect Current Sensor outputs a voltage level that is proportional to the input current. The current to be measured is run through the two large pins on the left side of the diagram and the corresponding voltage is measured from VIOUT and GND on the other side. This voltage is fed to an ADC on the PIC32 to be used in further calculations.
-		<br>
-		<br>
-		Additional calculation and calibration is required, however, to convert the ADC readings into amps. The calibration process we used was based off of this <a href=https://www.youtube.com/watch?v=spnl7JInMXc> video</a>
-		<br>
-		<br>
-		To convert the ADC reading, we first put the reading in terms of voltage. This is a simple conversion ratio matching the upper limit of the ADC (1024) to the supply voltage used (in this case 3.3 V). Next to makes this value in terms of current, we must find the change in amps corresponding to a given increase in voltage. To find this, we applied a current source set to every 0.25 amps from 0 to 2 A and measured the voltage read from the sensor. Once enough trials are collected, we then calculate the average change in voltage per amp and use that as our conversion factor. The datasheet lists the sensitivity of this part as 40 mV/A and our testing confirmed this value. One last step for calibration is accounting for the offset in the ADC measurements when no current is applied. This can be done either through hardware or software; we tried both options, and found that the software offset resulted in the correct amperage readings while the hardware offset did not.
-		<br>
-		<br>
-		The software offset is done by measuring the ADC value seen with no current applied on the left terminals; during our testing, we saw and ADC value of 128. We then hard-coded it to subtract this value from all subsequent ADC measurements used in calculation of voltage and current. In summary, here are the calculations required for calibration.
-		<br>
-		<br>
-		<center>
-			adc_raw = adc reading - 128
-			<br>
-			voltage reading = adc_raw * (3.3V / 1024)
-			<br>
-			current reading = voltage reading / (0.040 V / 1 A)
-		</center>
-		</p> 
+	   <h3>Measuring RPM</h3>
 
-		<h3>Measuring Voltage</h3>
-		<p> The input voltage to the motor is measured by connecting a wire parallel to the positive terminal of the power supply, which is then put through a 1:3 voltage divider made up of high resistance resistors, with the output being a quarter of the input voltage. This is to protect the MCU if we decide to run the motor as high as 12V. The output is then measured by the ADC, and calculation is done to reverse the voltage divider to get the voltage that the motor is acutally seeing.</p>
 
-		<p> To get voltage, current sensor and strain gage to work together, we needed 3 ADC channels. However, the conventional method with muxes only allows up to 2. Thus we had to switch ADC to SCAN mode, and read the scanned results in buffers 0, 1 and 2 for the 3 ADC results.</p>
+	   <p> To measure the rate of the motor, we used a <a href = https://www.sparkfun.com/products/9299>photo interrupter</a>, an infrared light sensor that can detect when an object passes between two uprights. One of the uprights on the sensor contains an infrared emitter and the other contains an infrared emitter. </p>
 
-		<h3>Measuring RPM</h3>
+	   <center>
+		   <img src="./Images/CAD3.jpg" alt="gauge factor eqn" style="width:325px;height:325px;">
+	   </center>
 
+	   <p> To initially test if the sensor works, we supplied 5 V to the sensor and wired it to the oscilloscope. When the gate of the sensor is clear, the oscilloscope showed a straight line at approximately 5 V. When something obstructs the gate, the signal drops to approximately 0 V.  Once we tested this, we mounted the sensor onto the mechanical setup so that every time the motor rotates, we can measure it’s frequency and thus, the RPM. </p>
+	   <p> To periodically read the sensor, we have an interrupt service routine that reads the input capture at the rising edge of the clock. This means that for every rotation the sensor outputs either 5 V or 0 V which is then read by the input capture. The setup for this is: OpenCapture4(  IC_RISE_EDGE | IC_INT_4CAPTURE | IC_TIMER3_SRC | IC_ON ) and ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_3 | IC_INT_SUB_PRIOR_3 ). This sets up the time capture and turns on the interrupt so that every capture can be recorded. In the PID thread, if the timeCapture is equal to 0, we set the timeCapture to 1 (to later avoid a divide by 0) and continuously calculate the raw RPM with the following equation: </p>
+	   <p> Plugging in the values into the equation, we get 9375000. We then divide that by the time capture to get the final, raw RPM value. Then, we applied an IIR filter by initializing a variable, rpm_filt to zero, calculating the difference of the raw rpm value and previous rpm value, dividing that by 16 and adding it to rpm_filt. This filter was initially added to help stabilize RPM values, but we used the raw rpm values for our control mechanism at the end because we found that the raw rpm values matched the tuned system better.   
+	   <center>
+		   <img src="./Images/rpm_calculation.png" alt="gauge factor eqn" style="width:325px;height:200px;">
+	   </center>
 
-		<p> To measure the rate of the motor, we used a <a href = https://www.sparkfun.com/products/9299>photo interrupter</a>, an infrared light sensor that can detect when an object passes between two uprights. One of the uprights on the sensor contains an infrared emitter and the other contains an infrared emitter. </p>
+	   <h3>Finding Power/Efficiency</h3>
+	   <p> The DC input power is simply V*A, which can be found by multiplying the measured voltage with current. However, the mechanical output power is more complicated. Rotational mechanical power is defined as torque multiplied by the angular velocity, in units of radians per second. So we had to convert the measured RPM to rads/sec and multiply that by the torque in N-m to get at power in Watts.</p>
 
-		<center>
-			<img src="./Images/CAD3.jpg" alt="gauge factor eqn" style="width:325px;height:325px;">
-		</center>
+	   <p> To get efficiency, we took the output power and divided it by the input power. It is multiplied by 100 for display in percent.</p>
 
-		<p> To initially test if the sensor works, we supplied 5 V to the sensor and wired it to the oscilloscope. When the gate of the sensor is clear, the oscilloscope showed a straight line at approximately 5 V. When something obstructs the gate, the signal drops to approximately 0 V.  Once we tested this, we mounted the sensor onto the mechanical setup so that every time the motor rotates, we can measure it’s frequency and thus, the RPM. </p>
-		<p> To periodically read the sensor, we have an interrupt service routine that reads the input capture at the rising edge of the clock. This means that for every rotation the sensor outputs either 5 V or 0 V which is then read by the input capture. The setup for this is: OpenCapture4(  IC_RISE_EDGE | IC_INT_4CAPTURE | IC_TIMER3_SRC | IC_ON ) and ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_3 | IC_INT_SUB_PRIOR_3 ). This sets up the time capture and turns on the interrupt so that every capture can be recorded. In the PID thread, if the timeCapture is equal to 0, we set the timeCapture to 1 (to later avoid a divide by 0) and continuously calculate the raw RPM with the following equation: </p>
-		<p> Plugging in the values into the equation, we get 9375000. We then divide that by the time capture to get the final, raw RPM value. Then, we applied an IIR filter by initializing a variable, rpm_filt to zero, calculating the difference of the raw rpm value and previous rpm value, dividing that by 16 and adding it to rpm_filt. This filter was initially added to help stabilize RPM values, but we used the raw rpm values for our control mechanism at the end because we found that the raw rpm values matched the tuned system better.   
-		<center>
-			<img src="./Images/rpm_calculation.png" alt="gauge factor eqn" style="width:325px;height:200px;">
-		</center>
+	   <h3>Servo/Motor Controller</h3>
 
-		<h3>Finding Power/Efficiency</h3>
-		<p> The DC input power is simply V*A, which can be found by multiplying the measured voltage with current. However, the mechanical output power is more complicated. Rotational mechanical power is defined as torque multiplied by the angular velocity, in units of radians per second. So we had to convert the measured RPM to rads/sec and multiply that by the torque in N-m to get at power in Watts.</p>
+	   <p> Servo controls were simple but tricky to figure out at first. They basically have their own control system inside that reads a PWM high-pulse anywhere between 1-2ms (on the white signal line, red for power and black is common ground), and sends the servo to maintain the proportional angle. So if we send a 1ms pulse, the servo goes to its minimum position, and 2ms it goes to the max. We used digital servos which responded faster than analog ones, and were more precise in its maneuvers.</p>
 
-		<p> To get efficiency, we took the output power and divided it by the input power. It is multiplied by 100 for display in percent.</p>
+	   <p> We originally had a motor controller for the DC motor that malfunctioned, so we just varied the voltage on the high-current supply for control. However,the control for that is very much the same as the servo controls; 1.5ms duty cycle for neutral, and 2ms for full forward power. In the future, we would not be able to directly drive a brushless motor off a power supply, so this would be very useful for our custom motor controller(we kept the code).</p>
+
+	   <h3>Serial Communication and Data Analysis</h3>
+	   <p>To save our data, we chose UART to serially communicate between the PIC32 and the computer. We used a <a href=https://www.adafruit.com/product/954> UART to USB serial cable</a>, and the transmit/receive setup from <a href= http://people.ece.cornell.edu/land/courses/ece4760/PIC32/Target_board/serial_expander_dac_tft/Serial_fprmatted_BRL4.c> this </a> protothreads example. 
+	   All we needed to do was transmit rpm and voltage from the PIC32 to the computer, so we instantiated pt_input, pt_output, pt_DMA_output for UART control. These threads are written and spawned from pt_cornell_1_2_2 and config_1_2_2 every time we want to send information. These files also set up the UART and DMA pins and initializations. To send information, we store our message to the PT_send_buffer buffer and then call PT_SPAWN on pt_DMA_output and PT_DMA_PutSerialBuffer.</p> 
 
-		<h3>Servo/Motor Controller</h3>
+	   <p>On the computer, we use <a href=https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html>Putty</a> to both view and log our data. Every time we run the system and have Putty open, the data is auto-saved and can be used by going to PuTTY -> PuTTY Configuration -> Session -> Logging. In Logging, locate or create a directory to save the data, and give a file name. We use "&H-&Y&M&D-&T.log" in our final project folder so that a new file is created everytime. Note that if you choose a specific file name (i.e "testfile.log"), the data will either be overwritten or appended to previously collected data. Alternatively, you can choose "Ask the user every time". Then, click on Session -> Default Settings -> Save to make this logging format your default setting.  
 
-		<p> Servo controls were simple but tricky to figure out at first. They basically have their own control system inside that reads a PWM high-pulse anywhere between 1-2ms (on the white signal line, red for power and black is common ground), and sends the servo to maintain the proportional angle. So if we send a 1ms pulse, the servo goes to its minimum position, and 2ms it goes to the max. We used digital servos which responded faster than analog ones, and were more precise in its maneuvers.</p>
-
-		<p> We originally had a motor controller for the DC motor that malfunctioned, so we just varied the voltage on the high-current supply for control. However,the control for that is very much the same as the servo controls; 1.5ms duty cycle for neutral, and 2ms for full forward power. In the future, we would not be able to directly drive a brushless motor off a power supply, so this would be very useful for our custom motor controller(we kept the code).</p>
-
-		<h3>Serial Communication and Data Analysis</h3>
-		<p>To save our data, we chose UART to serially communicate between the PIC32 and the computer. We used a <a href=https://www.adafruit.com/product/954> UART to USB serial cable</a>, and the transmit/receive setup from <a href= http://people.ece.cornell.edu/land/courses/ece4760/PIC32/Target_board/serial_expander_dac_tft/Serial_fprmatted_BRL4.c> this </a> protothreads example. 
-		All we needed to do was transmit rpm and voltage from the PIC32 to the computer, so we instantiated pt_input, pt_output, pt_DMA_output for UART control. These threads are written and spawned from pt_cornell_1_2_2 and config_1_2_2 every time we want to send information. These files also set up the UART and DMA pins and initializations. To send information, we store our message to the PT_send_buffer buffer and then call PT_SPAWN on pt_DMA_output and PT_DMA_PutSerialBuffer.</p> 
-
-		<p>On the computer, we use <a href=https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html>Putty</a> to both view and log our data. Every time we run the system and have Putty open, the data is auto-saved and can be used by going to PuTTY -> PuTTY Configuration -> Session -> Logging. In Logging, locate or create a directory to save the data, and give a file name. We use "&H-&Y&M&D-&T.log" in our final project folder so that a new file is created everytime. Note that if you choose a specific file name (i.e "testfile.log"), the data will either be overwritten or appended to previously collected data. Alternatively, you can choose "Ask the user every time". Then, click on Session -> Default Settings -> Save to make this logging format your default setting.  
-
-		<h3>Data Processing and Visualization</h3>
-
-		After logging a text file from putty and saving to a directory, we processed and visualized the rpm, torque and efficiency of the motor with a contour map in Matlab. Our text file contained a header with the date and time of the data collected and then 10 rows containing torque, rpm and efficiency. To process and read the data we followed the following steps:
-		<ul>
-			<li> Read the text file and parse the file to get rid of unwanted to spaces/tabs at the beginning and end of lines using the regexprep function. This function essentially gets rid of or replaces text using regular expression. </li>
-			<li>Open and write the contents of the parsed data into a variable, fid, which contains the file id. By calling various functions on the file id, we can read/write lines in the file since each line is stored as a cell. </li>
-			<li>Then, we check for lines that we want to skip in the data file. The default value for this parameter is zero, but since there is a default header in Putty as well as misc data that can be collected when our control loop is running, we skip these lines and update the fid to the next line using fget1 on the file id. Here, we skip over the lines in a for loop. </li>
-			<li> To read the data line by line, we have a while loop that runs until it hits the last line of the file. If the line length is greater than 1, we scan the line for float values and store each detected value in its respective array – R for rpm, T for torque, E for efficiency. We check if the line has more than one character because we noticed that when we stopped logging, empty lines or lines with single values would also be written to our file. This occurs because we stop manually stop the logging. </li>
-			<li> After closing the file, we calculate the length of each array and resize them to make sure they are of the same size by checking if the sizes are equal, and if they are not, we resize them to the smallest array’s size. </li>
-		</ul>
-		To visualize efficiency of a motor, a contour map is frequently used because motors have a large operating range, and an efficiency value for each operating point can be observed with a contour map. In this case, the RPM values are on the X axis and Torque on the Y axis. The efficiency is on the Z axis and is mapped to the respective (RPM, Torque) values.
-		<ul>
-			<li> To produce the contour map, the minimum and maximum values of the rpm and torque are used to produce a 100 point linearly spaced vector. </li>
-			<li> Then, a mesh grid, which returns two dimensional grid coordinates of the rpm and torque is produced. </li>
-			<li>  Using the grid coordinates and coordinates of efficiency, the griddata function fits the a surface to efficiency = (rpm, torque) and interpolates the surface at the points specified by the grid mesh. </li>
-			<li>The contourf function is called on the rpm, torque and efficiency vectors and the graph is then labeled. </li>
-		</ul>
-		All of this processing was put in a function with two input parameters: 1) filename, which takes a string input of the file in the current directory, and 2) skipl, which takes an integer value of how many lines, if any, to skip in the text file.
-
-		<h3>Test Sequence </h3>
-		<h4> Sequence Overview </h4>
-		<p> Upon reset, the system will begin runing our preprogrammed test sequence. The test sequence uses the first 120 seconds for calibration of the strain gauges and digital potentiometer; during this period the servos remain opened and sensor data is not sent over UART. Next the system must measure the no load RPM resulting from the selected voltage level. After the no load RPM is measured, then the program begins breaking (using the servos) to reach different percentages of the RPM. The torque, RPM, and calculated efficiency at these designated RPMs are then saved and transmitted. In our test sequence, the measured RPMS are: no load, 95%, 90%, 85%, 80%, 75%, 70%, 65%, 60%, and 55%. We initially wanted to take data by decresing the percentage by 10%, however, we found that if the RPM got too low, then the servo would immediately stop the rotating shaft and the system would stall since RPM could not get any lower. Between each of the data collection states, we pause transmission and allow the servos time to break to reach the desired RPM. This increases the accuracy of our measurements for torque, which is a running average, by eliminating values corresponding to undesired RPMS. After the 55% of no load RPM measurements are complete, the sequence returns to wait for five seconds before repeating the loop. The repetition of the entire test sequence did not work during testing; we found that the servos would open correctly but then close completely. To get new data, we had to reset the system. </p>
-
-		<h4>Test Sequence State Machine</h4>
-		<p>The test sequence was implemented into our code as a state machine based on the variable rpm_state with 12 states: ten corresponding to the ten measured RPMs mentioned above, one called PREP where the servos engage until they reach the desired RPM, and one called WAIT which accounts for the initial calibration time and lets the user change the voltage in between trials. The ten RPM level states are named NOLOAD for no load rpm, NINETY for 95% of no load, EIGHTY for 90%, SEVENTY for 85%, SIXTY for 80%, FIFTY for 75%, FORTY for 70%, THIRTY for 65%, TWENTY for 60%, and TEN for 55% </p>
-
-		<p>The system begins in the case WAIT. WAIT first evaluates a conditional that checks if the overall system run time (stored in variable tm) is between 100 and 120 seconds and prints "starting" on the TFT; this serves as a warning for the end of the calibration period and lets the user know they can begin increasing the supplied voltage. We want to increase the voltage later in the calibration period because during calibration it is better to supply no or low voltage to the motor to prevent the mechanical set up from vibrating excessively. Next in WAIT is an if-elseif-else branch that does the following. First it checks if tm is greater than the 120 sec calibration time and whether a variable cont is 0, if the condition is true then we know to begin the test sequence. To begin, it sets the rpm_state to PREP, the destination state (stored in the variable dest) to NOLOAD, rpm_des to rpm_sum (initialized to zero), time to PT_GET_TIME(), cont to 1, and opens the servos. The condition for the else-if branch is to wait for 5 sec have elapsed after the end of the first sequence and check if cont is 1. The else-if does the same as the if statement, but is executed after one sequence is complete. If either condition fails, the else statement simply keeps the rpm_state at WAIT. </p>
-
-		<p>The PREP state allows the system to attain the specified rpm in rpm_des prior to recording data. It also contains an if-elseif-else branch which does the following. First in the event that we have begun a new sequence and the destination state is NOLOAD, then we change rpm_state to dest, clear the running sum for torque (run_sum), set the running sum for RPM (rpm_sum) to newtime (the RPM measured from the photointerrupter), the number of data points collected to 1, and the time to PT_GET_TIME(). If the destination is not NOLOAD, then the next condition in PREP checks if the current rpm in newtime is greater than the desired rpm. If newtime is greater, than the shaft is spinning too fast and we want to engage the servos to slow down RPM. This is done by increasing des_angle1 and des_angle2 gradually (by increments of 10) and writing those values to the servo PWM until the else-if condition is false. Once the desired rpm is attained, then the program enters the else branch which clears run_sum and num_points and updates time and rpm_state to dest. </p>
-
-		<p>The rest of the RPM states follow the same structure. The system remains in each of the RPM states for four seconds. During the four seconds, data is collected in the else statement which updates the running sums for torque (run_sum) as well as the number of points collected. If four seconds have elapsed, then the running average for torque and the desired rpm are transmitted through UART to a PC. Additionally, rpm_des is decremented to the next percentage of the no load RPM and the destination state is set to the corresponding state (unless we are already in the lowest rpm state (55%) in which case the destination is set to WAIT); we also send the program to PREP to engage the servos. NOLOAD is a special case in that here we also calculate the running average for RPM and store the value in rpm_sum; this is the no load RPM used as a reference for the rest of the states to calculate rpm_des. </p>
-
-
-		<h2> Results </h2>
-
-		<h3> Example visualization: data from final demo </h3> 
-		<p> For our final demo, the collected data was the following: </p>
-		<center>
-			<img src="./Images/example_putty_output.png" alt="putty output" style="width:800px;height:500px;">
-		</center>
-		<p>In this text file, the first line is the header, every other line is empty and the last line was cut off when the data collection was stopped. The parsing method described above handles these issues, and then produces the following contour map: </p>
-		<center>
-			<img src="./Images/dyno_demo_contour.jpg" alt="contour map example" style="width:800px;height:400px;">
-		</center>
-		<p> Here, we can see that at peak efficiency can be observed within 10000 – 11000 RPM and 0.05 – 0.07 N.m of torque. We only took a few data points here, so a more systematic sweep would produce better results.</p>
-
-		<h3> Speed of execution </h3>
-		<p>One trade-off that limited the speed of execution of our system was the accuracy of the readings taken. Since accuracy is a higher priority than fast execution, we made changes that slowed down our testing sequence in favor of more accurate data. For example, in the final version of our dynamometer code, the test sequence allows for 120 seconds of calibration instead of the previous 45 seconds. This change gives the digital potentiometer nearly three times the time to zero out and balance the wheatstone bridge we get our torque measurments from. The extra time also lets the user give lower voltages to the motor during calibration instead of having to immediately turn up the voltage to that desired for testing, lowering the effect of vibration on calibration.</p>
-		<p>Additionally, the test sequence increments the servos PWM value by only 10 values at a time. We chose this value because we found that incrementing one was by far too slow, yet increasing this value to say 100 decreased the accuracy as the RPM would decrease too rapidly.</p>
-
-		<h3> Accuracy </h3>
-
-		<p> Due to the fact that we decided to test the system with a small brushed DC motor, the early test results do not appear to be very accurate. The magnitude of torque we expect to measure is on the order of 2-5 N-m, whereas the brushed motor is only capable of exerting 0.1-0.2 N-m at best. Therefore, the results vary and could be seen in the test run video. However, we expect this to be a lot better once we move on to test the larger brushless DC outrunner motors, which was the purpose for this project.</p>
-
-		<h3> Safety and Usability </h3>
-		<p> To keep our design safe, we constructed a shield for the main body out of plexiglass. During operation the shield is placed in front of the main mechanical setup to block any material that may fly off. Another safety concern we faced in our design was the danger of using high power. To address this issue, we compartmentalized the components of our system that would be carrying high current and/or high voltage to protect the other parts of our system. Additionally, we used wires with more insulation for our high current wiring and wrapped any exposed sections at connections with shrink wraps and/or electrical tape. </p>
-
-		<h3> Interference </h3>
-		<p> No significant interference problems were observed throughout this project, since no signals were transmitted wirelessly.
-
-		<h2> Conclusions </h2>
-		<p>Looking back our expectations, the results of what we were able to accomplish exceeded our expectations for the class project: all sensors worked and were integrated together, the test sequence is nearly completely autonmous, and based on the contour maps we have seen from our few trials, the data collected seems reasonable and will be useful for future use by the Resistance Racing team. Further work we could do to improve our project even more is to have the test sequence able to loop back after changing the voltage supply. This way multiple trials can be run and stored on the same text file rather; as of now, the data from different trials must be manually concatenated in order to display all collected data on the same contour map. This can also be improved with the integration of the motor controller for the brushless system, since that way with a more complex sequence we would be able to do sweep with a large number of data points.</p>
-
-		<p>In addition, data processing in the microcontroller system can be improved, by playing around with different filters and zeroing algorithms. Using a better powersupply would also help with the data collection, since we were getting some inconsistent results due to noise in testing. </p>
-
-		<p>We must say a big thank you to Professor Land for believing in us and this project, even when other professors and lab technicians were telling us this was not possible.</p>
-
-		<h3>Intellectual Property Considerations</h3>
-		<p>The sources we used for inspiration and help were mainly public forums or programming sites such as matworks. We did base some of our code off of the examples provided on the ECE 4760 course website and looked at tutorials for how to go about using our <a href=https://www.reddit.com/r/arduino/comments/4lmb8z/i_made_a_cheap_torque_sensor_with_a_socket/> strain gauges</a> and <a href=https://www.youtube.com/watch?v=spnl7JInMXc>current sensor</a>. We cited all references used in Appendix F.</p>
-
-		<h3>Ethical Considerations</h3>
-		<p>During this project, we tried to maintain and follow the IEEE Code of Ethics by ensuring the safety of our project and seeking help from others. Due to the complexity of our mechanical system, one of main priorities was keeping the system safe. We built our system in a bottom-up fashion, integrating smaller modules together until everything was connected; as we did so, we continually added safety features that addressed potential dangers. For example, once we integrated the high power supplies into our system, we changed our wiring to keep high power sections separate and added wires designed to handle high current and high voltage to these subsystems. Additionally, we created a plastic shield for the rotating section of the mechanical setup.</p>
-
-		<p>Since we completed this project in collaboration with the Resistance Racing project team, we made sure to inform both Professor Bruce Land and Resistance Racing advisor Professor Joe Skovira of our intentions prior to beginning this project to avoid any potential conflicts of interest. Throughout this project, and course as well, we sought honest criticism of our ideas and advice from Professor Land and the teaching assistants of this course and other faculty in the Enginnering school including Professor Alan Zehnder and Liran Gazit. Additionally, we pulled information and inspiration from online and credited them in text and Appendix F of this document.</p>
-
-		<p>Lastly, we strove to report the results of our project in a honest and clear manner. The data we collected came directly from the sensors integrated in our system. The contour map was used to display the data in a meaningful way. </p>
-
-		<h3> Final Demonstration Video </h3>
-		<center>
-			<iframe width="560" height="315" src="https://www.youtube.com/embed/EXzGEKHN4d0" frameborder="0" gesture="media" allow="encrypted-media" allowfullscreen></iframe>
-		</center> 
-		<h3>Appendix A</h3>
-		<p>The group approves this report for inclusion on the course website.</p>
-		<p>The group approves the video for inclusion on the course youtube channel.</p>
-
-		<h3>Appendix B -- System Schematic and Pins Used</h3>
-		<center>
-			<img src="./Images/high_level_diagram.png" alt="high level diagram" style="width:1000px;height:312px;"> 
-		</center>
-		<br>
-		<center>
-			<img src="./Images/pins.jpg" alt="high level diagram" style="width:230px;height:260px;"> 
-		</center>
-
-		<h3>Appendix C -- Bill of Materials</h3>
-
-		<p>Since this was done as a part of the Resistance Racing project team, most of the costs were handled by the team. And so the budget limit was removed as explained in the lab 5 webpage.</p>
-		<center>
-			<img src="./Images/BOM1.jpg" alt="mechanical setup, side view" style="width:750px;height:214px;"> 
-		</center>
-		<center>
-			<img src="./Images/BOM2.jpg" alt="mechanical setup, front view" style="width:750px;height:384px;"> 
-		</center>
-
-		<h3>Appendix D -- Task Delegation</h3>
-		<p>Tasks worked on by Aasta Gandhi: UART communication, current sensor calibration, contour map MATLAB code, test sequence code, photointerrupter/RPM code, code integration, wheatstone bridge/amplifier circuitry </p>
-		<p>Tasks worked on by Kowin Shi: design and manufacturing of mechanical setup, strain gauge mounting, software filters for sensors, high power wiring, digital potentiometer calibration code, wheatstone bridge/amplifier circuitry </p>
-		<p>Tasks worked on by Erika Yu: current sensor calibration, contour map MATLAB code, test sequence code, soldering of power rail circuitry, high power wiring, wheatstone bridge/amplifier circuitry </p>
-
-		<h3>Appendix E -- Commented Code</h3>
-		<a href=https://raw.githubusercontent.com/agandhi97/ECE4760_dyno/master/contour4760final.m> Matlab Code</a>
-		<a href=https://raw.githubusercontent.com/agandhi97/ECE4760_dyno/master/lab5_compile.c>Final C Code</a>
-
-		<h3>Appendix F -- References</h3>
-		<br><a href=http://www.ansys-blog.com/advanced-design-electric-motors/> ANSYS Blog for Motor Efficiency Map</a>
-		<br><a href=https://www.youtube.com/watch?v=spnl7JInMXc> Current Sensor Calibration Tutorial Video</a>
-		<br><a href= https://www.digikey.com/product-detail/en/analog-devices-inc/AD5231BRUZ10-REEL7/AD5231BRUZ10-REEL7CT-ND/3314098> Digital Potentiometer Datasheet</a>
-		<br><a href=https://www.reddit.com/r/arduino/comments/4lmb8z/i_made_a_cheap_torque_sensor_with_a_socket/> DIY Torque Sensor Using Arduino and Strain Gauges</a>
-		<br><a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> Hall Effect Current Sensor ACS758 Datasheet</a>
-		<br><a href=www.cs.cornell.edu/courses/cs1112/2017fa/files/Notes/egL18/L18post.pdf>CS1112 Lecture 18 Slides</a>
-		<br><a href=https://www.mathworks.com/matlabcentral/answers/355102-how-to-draw-efficiency-map-contour-of-a-motor> Matlab Efficiency Map Contour Example</a>
-		<br><a href=http://www.sensorland.com/HowPage002.html> Strain Gage Diagram</a>
-		<br><a href = https://www.sparkfun.com/products/9299> Photointerrupter Product Information</a>
-		<br><a href=https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html> Putty Download Link</a>
-		<br><a href= http://people.ece.cornell.edu/land/courses/ece4760/PIC32/Target_board/serial_expander_dac_tft/Serial_fprmatted_BRL4.c> UART Serial Communication Example Code</a> 
-		<br><a href=https://www.adafruit.com/product/954> UART to USB serial Cable Product Information</a>
-		<br><a href=https://notendur.hi.is/rol/EIIa/EIIa2000/Taekniblod/AN078%20Strain%20gauge%20measurements.PDF> National Instruments Guide on Strain Gages</a>
-		<br><a href=http://www.vishaypg.com/docs/11210/125tk.pdf> Vishay 125tk Data Sheet</a>
-		<br><a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> ACS758 Data</a>
-		<br><a href=http://www.ti.com/lit/ds/sbos078/sbos078.pdf> INA121 Datasheet</a>
-		<br><a href=http://www.dtic.mil/docs/citations/ADA577582> US Army Lab Paper on Small Motor Dyno</a>
-		<br><a href=http://www.bpesolutions.com/atechnical/ServoWire.Code.pdf> Servo Wire Code</a>
-		<br><a href=http://people.ece.cornell.edu/land/courses/ece4760/#links> Answers to Anything PIC32: SPI, ADC, PWM, Pinout Diagram</a>
+	   <h3>Data Processing and Visualization</h3>
+
+	   After logging a text file from putty and saving to a directory, we processed and visualized the rpm, torque and efficiency of the motor with a contour map in Matlab. Our text file contained a header with the date and time of the data collected and then 10 rows containing torque, rpm and efficiency. To process and read the data we followed the following steps:
+	   <ul>
+		   <li> Read the text file and parse the file to get rid of unwanted to spaces/tabs at the beginning and end of lines using the regexprep function. This function essentially gets rid of or replaces text using regular expression. </li>
+		   <li>Open and write the contents of the parsed data into a variable, fid, which contains the file id. By calling various functions on the file id, we can read/write lines in the file since each line is stored as a cell. </li>
+		   <li>Then, we check for lines that we want to skip in the data file. The default value for this parameter is zero, but since there is a default header in Putty as well as misc data that can be collected when our control loop is running, we skip these lines and update the fid to the next line using fget1 on the file id. Here, we skip over the lines in a for loop. </li>
+		   <li> To read the data line by line, we have a while loop that runs until it hits the last line of the file. If the line length is greater than 1, we scan the line for float values and store each detected value in its respective array – R for rpm, T for torque, E for efficiency. We check if the line has more than one character because we noticed that when we stopped logging, empty lines or lines with single values would also be written to our file. This occurs because we stop manually stop the logging. </li>
+		   <li> After closing the file, we calculate the length of each array and resize them to make sure they are of the same size by checking if the sizes are equal, and if they are not, we resize them to the smallest array’s size. </li>
+	   </ul>
+	   To visualize efficiency of a motor, a contour map is frequently used because motors have a large operating range, and an efficiency value for each operating point can be observed with a contour map. In this case, the RPM values are on the X axis and Torque on the Y axis. The efficiency is on the Z axis and is mapped to the respective (RPM, Torque) values.
+	   <ul>
+		   <li> To produce the contour map, the minimum and maximum values of the rpm and torque are used to produce a 100 point linearly spaced vector. </li>
+		   <li> Then, a mesh grid, which returns two dimensional grid coordinates of the rpm and torque is produced. </li>
+		   <li>  Using the grid coordinates and coordinates of efficiency, the griddata function fits the a surface to efficiency = (rpm, torque) and interpolates the surface at the points specified by the grid mesh. </li>
+		   <li>The contourf function is called on the rpm, torque and efficiency vectors and the graph is then labeled. </li>
+	   </ul>
+	   All of this processing was put in a function with two input parameters: 1) filename, which takes a string input of the file in the current directory, and 2) skipl, which takes an integer value of how many lines, if any, to skip in the text file.
+
+	   <h3>Test Sequence </h3>
+	   <h4> Sequence Overview </h4>
+	   <p> Upon reset, the system will begin runing our preprogrammed test sequence. The test sequence uses the first 120 seconds for calibration of the strain gauges and digital potentiometer; during this period the servos remain opened and sensor data is not sent over UART. Next the system must measure the no load RPM resulting from the selected voltage level. After the no load RPM is measured, then the program begins breaking (using the servos) to reach different percentages of the RPM. The torque, RPM, and calculated efficiency at these designated RPMs are then saved and transmitted. In our test sequence, the measured RPMS are: no load, 95%, 90%, 85%, 80%, 75%, 70%, 65%, 60%, and 55%. We initially wanted to take data by decresing the percentage by 10%, however, we found that if the RPM got too low, then the servo would immediately stop the rotating shaft and the system would stall since RPM could not get any lower. Between each of the data collection states, we pause transmission and allow the servos time to break to reach the desired RPM. This increases the accuracy of our measurements for torque, which is a running average, by eliminating values corresponding to undesired RPMS. After the 55% of no load RPM measurements are complete, the sequence returns to wait for five seconds before repeating the loop. The repetition of the entire test sequence did not work during testing; we found that the servos would open correctly but then close completely. To get new data, we had to reset the system. </p>
+
+	   <h4>Test Sequence State Machine</h4>
+	   <p>The test sequence was implemented into our code as a state machine based on the variable rpm_state with 12 states: ten corresponding to the ten measured RPMs mentioned above, one called PREP where the servos engage until they reach the desired RPM, and one called WAIT which accounts for the initial calibration time and lets the user change the voltage in between trials. The ten RPM level states are named NOLOAD for no load rpm, NINETY for 95% of no load, EIGHTY for 90%, SEVENTY for 85%, SIXTY for 80%, FIFTY for 75%, FORTY for 70%, THIRTY for 65%, TWENTY for 60%, and TEN for 55% </p>
+
+	   <p>The system begins in the case WAIT. WAIT first evaluates a conditional that checks if the overall system run time (stored in variable tm) is between 100 and 120 seconds and prints "starting" on the TFT; this serves as a warning for the end of the calibration period and lets the user know they can begin increasing the supplied voltage. We want to increase the voltage later in the calibration period because during calibration it is better to supply no or low voltage to the motor to prevent the mechanical set up from vibrating excessively. Next in WAIT is an if-elseif-else branch that does the following. First it checks if tm is greater than the 120 sec calibration time and whether a variable cont is 0, if the condition is true then we know to begin the test sequence. To begin, it sets the rpm_state to PREP, the destination state (stored in the variable dest) to NOLOAD, rpm_des to rpm_sum (initialized to zero), time to PT_GET_TIME(), cont to 1, and opens the servos. The condition for the else-if branch is to wait for 5 sec have elapsed after the end of the first sequence and check if cont is 1. The else-if does the same as the if statement, but is executed after one sequence is complete. If either condition fails, the else statement simply keeps the rpm_state at WAIT. </p>
+
+	   <p>The PREP state allows the system to attain the specified rpm in rpm_des prior to recording data. It also contains an if-elseif-else branch which does the following. First in the event that we have begun a new sequence and the destination state is NOLOAD, then we change rpm_state to dest, clear the running sum for torque (run_sum), set the running sum for RPM (rpm_sum) to newtime (the RPM measured from the photointerrupter), the number of data points collected to 1, and the time to PT_GET_TIME(). If the destination is not NOLOAD, then the next condition in PREP checks if the current rpm in newtime is greater than the desired rpm. If newtime is greater, than the shaft is spinning too fast and we want to engage the servos to slow down RPM. This is done by increasing des_angle1 and des_angle2 gradually (by increments of 10) and writing those values to the servo PWM until the else-if condition is false. Once the desired rpm is attained, then the program enters the else branch which clears run_sum and num_points and updates time and rpm_state to dest. </p>
+
+	   <p>The rest of the RPM states follow the same structure. The system remains in each of the RPM states for four seconds. During the four seconds, data is collected in the else statement which updates the running sums for torque (run_sum) as well as the number of points collected. If four seconds have elapsed, then the running average for torque and the desired rpm are transmitted through UART to a PC. Additionally, rpm_des is decremented to the next percentage of the no load RPM and the destination state is set to the corresponding state (unless we are already in the lowest rpm state (55%) in which case the destination is set to WAIT); we also send the program to PREP to engage the servos. NOLOAD is a special case in that here we also calculate the running average for RPM and store the value in rpm_sum; this is the no load RPM used as a reference for the rest of the states to calculate rpm_des. </p>
+
+
+	   <h2> Results </h2>
+
+	   <h3> Example visualization: data from final demo </h3> 
+	   <p> For our final demo, the collected data was the following: </p>
+	   <center>
+		   <img src="./Images/example_putty_output.png" alt="putty output" style="width:800px;height:500px;">
+	   </center>
+	   <p>In this text file, the first line is the header, every other line is empty and the last line was cut off when the data collection was stopped. The parsing method described above handles these issues, and then produces the following contour map: </p>
+	   <center>
+		   <img src="./Images/dyno_demo_contour.jpg" alt="contour map example" style="width:800px;height:400px;">
+	   </center>
+	   <p> Here, we can see that at peak efficiency can be observed within 10000 – 11000 RPM and 0.05 – 0.07 N.m of torque. We only took a few data points here, so a more systematic sweep would produce better results.</p>
+
+	   <h3> Speed of execution </h3>
+	   <p>One trade-off that limited the speed of execution of our system was the accuracy of the readings taken. Since accuracy is a higher priority than fast execution, we made changes that slowed down our testing sequence in favor of more accurate data. For example, in the final version of our dynamometer code, the test sequence allows for 120 seconds of calibration instead of the previous 45 seconds. This change gives the digital potentiometer nearly three times the time to zero out and balance the wheatstone bridge we get our torque measurments from. The extra time also lets the user give lower voltages to the motor during calibration instead of having to immediately turn up the voltage to that desired for testing, lowering the effect of vibration on calibration.</p>
+	   <p>Additionally, the test sequence increments the servos PWM value by only 10 values at a time. We chose this value because we found that incrementing one was by far too slow, yet increasing this value to say 100 decreased the accuracy as the RPM would decrease too rapidly.</p>
+
+	   <h3> Accuracy </h3>
+
+	   <p> Due to the fact that we decided to test the system with a small brushed DC motor, the early test results do not appear to be very accurate. The magnitude of torque we expect to measure is on the order of 2-5 N-m, whereas the brushed motor is only capable of exerting 0.1-0.2 N-m at best. Therefore, the results vary and could be seen in the test run video. However, we expect this to be a lot better once we move on to test the larger brushless DC outrunner motors, which was the purpose for this project.</p>
+
+	   <h3> Safety and Usability </h3>
+	   <p> To keep our design safe, we constructed a shield for the main body out of plexiglass. During operation the shield is placed in front of the main mechanical setup to block any material that may fly off. Another safety concern we faced in our design was the danger of using high power. To address this issue, we compartmentalized the components of our system that would be carrying high current and/or high voltage to protect the other parts of our system. Additionally, we used wires with more insulation for our high current wiring and wrapped any exposed sections at connections with shrink wraps and/or electrical tape. </p>
+
+	   <h3> Interference </h3>
+	   <p> No significant interference problems were observed throughout this project, since no signals were transmitted wirelessly.
+
+	   <h2> Conclusions </h2>
+	   <p>Looking back our expectations, the results of what we were able to accomplish exceeded our expectations for the class project: all sensors worked and were integrated together, the test sequence is nearly completely autonmous, and based on the contour maps we have seen from our few trials, the data collected seems reasonable and will be useful for future use by the Resistance Racing team. Further work we could do to improve our project even more is to have the test sequence able to loop back after changing the voltage supply. This way multiple trials can be run and stored on the same text file rather; as of now, the data from different trials must be manually concatenated in order to display all collected data on the same contour map. This can also be improved with the integration of the motor controller for the brushless system, since that way with a more complex sequence we would be able to do sweep with a large number of data points.</p>
+
+	   <p>In addition, data processing in the microcontroller system can be improved, by playing around with different filters and zeroing algorithms. Using a better powersupply would also help with the data collection, since we were getting some inconsistent results due to noise in testing. </p>
+
+	   <p>We must say a big thank you to Professor Land for believing in us and this project, even when other professors and lab technicians were telling us this was not possible.</p>
+
+	   <h3>Intellectual Property Considerations</h3>
+	   <p>The sources we used for inspiration and help were mainly public forums or programming sites such as matworks. We did base some of our code off of the examples provided on the ECE 4760 course website and looked at tutorials for how to go about using our <a href=https://www.reddit.com/r/arduino/comments/4lmb8z/i_made_a_cheap_torque_sensor_with_a_socket/> strain gauges</a> and <a href=https://www.youtube.com/watch?v=spnl7JInMXc>current sensor</a>. We cited all references used in Appendix F.</p>
+
+	   <h3>Ethical Considerations</h3>
+	   <p>During this project, we tried to maintain and follow the IEEE Code of Ethics by ensuring the safety of our project and seeking help from others. Due to the complexity of our mechanical system, one of main priorities was keeping the system safe. We built our system in a bottom-up fashion, integrating smaller modules together until everything was connected; as we did so, we continually added safety features that addressed potential dangers. For example, once we integrated the high power supplies into our system, we changed our wiring to keep high power sections separate and added wires designed to handle high current and high voltage to these subsystems. Additionally, we created a plastic shield for the rotating section of the mechanical setup.</p>
+
+	   <p>Since we completed this project in collaboration with the Resistance Racing project team, we made sure to inform both Professor Bruce Land and Resistance Racing advisor Professor Joe Skovira of our intentions prior to beginning this project to avoid any potential conflicts of interest. Throughout this project, and course as well, we sought honest criticism of our ideas and advice from Professor Land and the teaching assistants of this course and other faculty in the Enginnering school including Professor Alan Zehnder and Liran Gazit. Additionally, we pulled information and inspiration from online and credited them in text and Appendix F of this document.</p>
+
+	   <p>Lastly, we strove to report the results of our project in a honest and clear manner. The data we collected came directly from the sensors integrated in our system. The contour map was used to display the data in a meaningful way. </p>
+
+	   <h3> Final Demonstration Video </h3>
+	   <center>
+		   <iframe width="560" height="315" src="https://www.youtube.com/embed/EXzGEKHN4d0" frameborder="0" gesture="media" allow="encrypted-media" allowfullscreen></iframe>
+	   </center> 
+	   <h3>Appendix A</h3>
+	   <p>The group approves this report for inclusion on the course website.</p>
+	   <p>The group approves the video for inclusion on the course youtube channel.</p>
+
+	   <h3>Appendix B -- System Schematic and Pins Used</h3>
+	   <center>
+		   <img src="./Images/high_level_diagram.png" alt="high level diagram" style="width:1000px;height:312px;"> 
+	   </center>
+	   <br>
+	   <center>
+		   <img src="./Images/pins.jpg" alt="high level diagram" style="width:230px;height:260px;"> 
+	   </center>
+
+	   <h3>Appendix C -- Bill of Materials</h3>
+
+	   <p>Since this was done as a part of the Resistance Racing project team, most of the costs were handled by the team. And so the budget limit was removed as explained in the lab 5 webpage.</p>
+	   <center>
+		   <img src="./Images/BOM1.jpg" alt="mechanical setup, side view" style="width:750px;height:214px;"> 
+	   </center>
+	   <center>
+		   <img src="./Images/BOM2.jpg" alt="mechanical setup, front view" style="width:750px;height:384px;"> 
+	   </center>
+
+	   <h3>Appendix D -- Task Delegation</h3>
+	   <p>Tasks worked on by Aasta Gandhi: UART communication, current sensor calibration, contour map MATLAB code, test sequence code, photointerrupter/RPM code, code integration, wheatstone bridge/amplifier circuitry </p>
+	   <p>Tasks worked on by Kowin Shi: design and manufacturing of mechanical setup, strain gauge mounting, software filters for sensors, high power wiring, digital potentiometer calibration code, wheatstone bridge/amplifier circuitry </p>
+	   <p>Tasks worked on by Erika Yu: current sensor calibration, contour map MATLAB code, test sequence code, soldering of power rail circuitry, high power wiring, wheatstone bridge/amplifier circuitry </p>
+
+	   <h3>Appendix E -- Commented Code</h3>
+	   <a href=https://raw.githubusercontent.com/agandhi97/ECE4760_dyno/master/contour4760final.m> Matlab Code</a>
+	   <a href=https://raw.githubusercontent.com/agandhi97/ECE4760_dyno/master/lab5_compile.c>Final C Code</a>
+
+	   <h3>Appendix F -- References</h3>
+	   <br><a href=http://www.ansys-blog.com/advanced-design-electric-motors/> ANSYS Blog for Motor Efficiency Map</a>
+	   <br><a href=https://www.youtube.com/watch?v=spnl7JInMXc> Current Sensor Calibration Tutorial Video</a>
+	   <br><a href= https://www.digikey.com/product-detail/en/analog-devices-inc/AD5231BRUZ10-REEL7/AD5231BRUZ10-REEL7CT-ND/3314098> Digital Potentiometer Datasheet</a>
+	   <br><a href=https://www.reddit.com/r/arduino/comments/4lmb8z/i_made_a_cheap_torque_sensor_with_a_socket/> DIY Torque Sensor Using Arduino and Strain Gauges</a>
+	   <br><a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> Hall Effect Current Sensor ACS758 Datasheet</a>
+	   <br><a href=www.cs.cornell.edu/courses/cs1112/2017fa/files/Notes/egL18/L18post.pdf>CS1112 Lecture 18 Slides</a>
+	   <br><a href=https://www.mathworks.com/matlabcentral/answers/355102-how-to-draw-efficiency-map-contour-of-a-motor> Matlab Efficiency Map Contour Example</a>
+	   <br><a href=http://www.sensorland.com/HowPage002.html> Strain Gage Diagram</a>
+	   <br><a href = https://www.sparkfun.com/products/9299> Photointerrupter Product Information</a>
+	   <br><a href=https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html> Putty Download Link</a>
+	   <br><a href= http://people.ece.cornell.edu/land/courses/ece4760/PIC32/Target_board/serial_expander_dac_tft/Serial_fprmatted_BRL4.c> UART Serial Communication Example Code</a> 
+	   <br><a href=https://www.adafruit.com/product/954> UART to USB serial Cable Product Information</a>
+	   <br><a href=https://notendur.hi.is/rol/EIIa/EIIa2000/Taekniblod/AN078%20Strain%20gauge%20measurements.PDF> National Instruments Guide on Strain Gages</a>
+	   <br><a href=http://www.vishaypg.com/docs/11210/125tk.pdf> Vishay 125tk Data Sheet</a>
+	   <br><a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> ACS758 Data</a>
+	   <br><a href=http://www.ti.com/lit/ds/sbos078/sbos078.pdf> INA121 Datasheet</a>
+	   <br><a href=http://www.dtic.mil/docs/citations/ADA577582> US Army Lab Paper on Small Motor Dyno</a>
+	   <br><a href=http://www.bpesolutions.com/atechnical/ServoWire.Code.pdf> Servo Wire Code</a>
+	   <br><a href=http://people.ece.cornell.edu/land/courses/ece4760/#links> Answers to Anything PIC32: SPI, ADC, PWM, Pinout Diagram</a>
 
 	</body>
 </html> 
