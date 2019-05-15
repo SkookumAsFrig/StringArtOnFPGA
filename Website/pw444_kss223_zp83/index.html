@@ -268,13 +268,13 @@ end</b></pre>
 	    <p>Since this is a rather open ended project with many algorithmic approaches, we relied on the versatility of MATLAB to experiment with ideas. We mostly used the generated images to judge if a particular approach was acceptable, and ran it with multiple images on a workstation computer (since it was very slow). Then, after writing parts of the Verilog solver, we relied on ModelSim to verify the results against the same implementation in MATLAB. Below is a snippet of the testing of the controller together with the bresenham computation module, compared against our MATLAB script output.</p>
 	    <center>
 		    <figure>
-			    <img src="./Images/modelsim.png" alt="ModelSim" style="width:1400px">
+			    <img src="./Images/modelsim.png" alt="ModelSim" style="width:1100px">
 			    <figcaption>Fig.19 ModelSim Testing of Solver Module</figcaption>
 		    </figure>
 	    </center>
 	    <center>
 		    <figure>
-			    <img src="./Images/matlab.png" alt="MATLAB" style="width:167px">
+			    <img src="./Images/matlab.png" alt="MATLAB" style="width:125px">
 			    <figcaption>Fig.20 MATLAB Result of Solver Module</figcaption>
 		    </figure>
 	    </center>
@@ -395,8 +395,9 @@ end</b></pre>
 	    <p>We came up with a few methods to implement this, although due to the extensive time needed to construct and verify the current design, we were not able to experiment with them within the 6 weeks. First, we would have to move the VGA Subsystem IP off the SDRAM to use M10K or simply go with the custom VGA that we used in lab 3, meaning that we have to use the FPGA for drawing the image exclusively. This would free up the 64MB available in the SDRAM, which would be enough as shown earlier. Second, we would have to figure out the SDRAM protocol for reading and writing data. If it is incapable of handling the amount of parallel reads/writes that our current system performs, then delay states have to be designed into our control and computation state machines, to allow for a serial process. Third, the supersampling portion is done natively by choosing a larger canvas, but the downsampling part is more complicated. Since currently we are only calculating difference along the line's pixels and nowhere else, we would like to keep that element to reduce computation. Thus, a dynamic box filter solver needs to be developed, to only recompute the downsampled pixels that the supersampled line crosses through. Then, this information needs to be passed on to the reduction calculation stage, so that it knows to only compute for those pixels and nothing else. Lastly, the display mechanism needs to be changed as well, since we would be no longer drawing a defined line but rather downsampled image pixels. The easiest way to do that is to do a clamping operation on the downsampled canvas memory, and write the results directly to the M10K block used by VGA. This way, the updated image is refreshed entirely, and matches the changed process. We could also try the Xiaolin Wu algorithm, since the downsampling requires switching to fixed point fractions anyways.</p>
 	    <p>We would like to thank Professor Bruce Land for his ideas and support throughout this project, and for teaching such an unique and valuable course.</p>
 	    <h3>Intellectual Property Considerations</h3>
-	    <p>We built the outer most module from ECE 5760's <a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/HPS_peripherials/univ_pgm_computer.index.html>Video VGA 640x480 displayed from SDRAM, in 16-bit color</a>, which uses Altera's VGA subsystem IP and SDRAM Qsys module. In addition, our instantiation of memory blocks were referenced from <a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/Memory/index.html>Altera resources</a>.</p>
+	    <p>We built the outer most module from ECE 5760's <a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/HPS_peripherials/univ_pgm_computer.index.html>Video VGA 640x480 displayed from SDRAM, in 16-bit color</a>, which uses Altera's VGA subsystem IP and SDRAM Qsys module. In addition, our instantiation of memory blocks were referenced from <a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/Memory/index.html>Altera resources</a>. We also modified our C and C++ code from Professor Land's <a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/DE1_soc_computer/VGA_16bit_color/graphics_video_16bit.c>graphics_video_16bit.c</a> to use the graphics primitives.</p>
 	    <p>In terms of the algorithm and optimization processes, we referenced <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/><i>String Art: Towards Computational Fabrication of String Images</i></a> extensively. We also used 2 of the paper's figures in this report's background math section, which are labeled as such. The paper's accompanying MATLAB code repository was also used to test our own algorithmic experiments, available <a href = https://github.com/Exception1984/StringArt>here</a>. <a href = https://www.youtube.com/watch?v=M1gXuKFspgY><i>A New Spin on String Art Machines</i></a> is the Youtube video that originally gave us the inspiration, and we would like to give credit to Barton and his wonderful channel.</p>
+	    <p>The HPS image processing code uses <a href = http://eigen.tuxfamily.org/index.php?title=Main_Page>Eigen3</a> and <a href = https://github.com/opencv/opencv>OpenCV 3.2</a> libraries.</p>
 	    <p>Since prior art does exist on this topic, and much of the algorithm was already developed and released into public domain, we do not see patent opportunities for this project.</p>
 
 	    <h3>Ethical Considerations</h3>
@@ -412,54 +413,42 @@ end</b></pre>
 	    <p>The group approves this report for inclusion on the course website.</p>
 	    <p>The group approves the video for inclusion on the course youtube channel.</p>
 
-	    <h3>Appendix B -- System Schematic and Pins Used</h3>
-	    <center>
-		    <img src="./Images/high_level_diagram.png" alt="high level diagram" style="width:1000px;height:312px;"> 
-	    </center>
-	    <br>
-	    <center>
-		    <img src="./Images/pins.jpg" alt="high level diagram" style="width:230px;height:260px;"> 
-	    </center>
+	    <h3>Appendix B -- Task Delegation</h3>
+	    <p>Tasks worked on by Peng Wu: Verilog code for control module and computation module, test bench code for both modules, website design section</p>
+	    <p>Tasks worked on by Kowin Shi: Matlab Verification of the algorithm, C code for drawing lines in real time, Verilog code for computation module, website introduction and high level design sections</p>
+	    <p>Tasks worked on by Zhizhong Peng: C code for image processing and pin position calculation, Verilog code for control module, website results and conclusion sections</p>
 
-	    <h3>Appendix C -- Bill of Materials</h3>
+	    <h3>Appendix C -- Commented Code</h3>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/DE1_SoC_Computer.v>DE1_SoC_Computer.v</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Bresenham_Solver.sv>Bresenham_Solver.sv</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Add_Remove_Search.sv>Add_Remove_Search.sv</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Add_Remove_Search_tb.sv >Add_Remove_Search_tb.sv</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Bresenham_tb.sv >Bresenham_tb.sv</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Image_memory.v >Image_memory.v</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Count_memory.v >Count_memory.v</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Edge_Memory.v >Edge_Memory.v</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/verilog/Pin_pos_memory.v >Pin_pos_memory.v</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/DE1_SoC_Computer_5_5_ein2.sof >Einstein Compiled sof</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/DE1_SoC_Computer_turing.sof >Turing Compiled sof</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/DE1_SoC_Computer_peace.sof >Peace Sign Compiled sof</a></p>
 
-	    <p>Since this was done as a part of the Resistance Racing project team, most of the costs were handled by the team. And so the budget limit was removed as explained in the lab 5 webpage.</p>
-	    <center>
-		    <img src="./Images/BOM1.jpg" alt="mechanical setup, side view" style="width:750px;height:214px;"> 
-	    </center>
-	    <center>
-		    <img src="./Images/BOM2.jpg" alt="mechanical setup, front view" style="width:750px;height:384px;"> 
-	    </center>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/HPS_Code/graphics_video_16bit.cpp >graphics_video_16bit.cpp</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/HPS_Code/graphics_video_16bit.c >graphics_video_16bit.c</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/HPS_Code/graphics_video_16bit.c >graphics_video_16bit.c</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/tree/master/Paper_MATLABCode/MATLAB_Time_Results/Example_Algo >Matlab Code</a></p>
+	    <p><a href=https://github.com/SkookumAsFrig/StringArtOnFPGA/blob/master/Paper_MATLABCode/ImageInitScript.m >Image Initialization Script</a></p>
 
-	    <h3>Appendix D -- Task Delegation</h3>
-	    <p>Tasks worked on by Aasta Gandhi: UART communication, current sensor calibration, contour map MATLAB code, test sequence code, photointerrupter/RPM code, code integration, wheatstone bridge/amplifier circuitry </p>
-	    <p>Tasks worked on by Kowin Shi: design and manufacturing of mechanical setup, strain gauge mounting, software filters for sensors, high power wiring, digital potentiometer calibration code, wheatstone bridge/amplifier circuitry </p>
-	    <p>Tasks worked on by Erika Yu: current sensor calibration, contour map MATLAB code, test sequence code, soldering of power rail circuitry, high power wiring, wheatstone bridge/amplifier circuitry </p>
+	    <h3>Appendix D -- References</h3>
+	    <p><a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/HPS_peripherials/univ_pgm_computer.index.html>Altera University Graphics</a></p>
+	    <p><a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/Memory/index.html>FPGA Memory</a></p>
+	    <p><a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/><i>String Art: Towards Computational Fabrication of String Images</i></a></p>
+	    <p><a href = https://www.youtube.com/watch?v=M1gXuKFspgY><i>A New Spin on String Art Machines</i></a></p>
+	    <p><a href = https://github.com/Exception1984/StringArt>StringArt MATLAB Repository</a></p>
+	    <p><a href = https://www.youtube.com/watch?v=RGB-wlatStc>Bresenham Algorithm</a></p>
+	    <p><a href = http://artof01.com/vrellis/works/knit.html>Petros Vrellis</a></p>
+	    <p><a href = http://eigen.tuxfamily.org/index.php?title=Main_Page>Eigen3</a></p>
+	    <p><a href = https://github.com/opencv/opencv>OpenCV</a></p>
 
-	    <h3>Appendix E -- Commented Code</h3>
-	    <a href=https://raw.githubusercontent.com/agandhi97/ECE4760_dyno/master/contour4760final.m> Matlab Code</a>
-	    <a href=https://raw.githubusercontent.com/agandhi97/ECE4760_dyno/master/lab5_compile.c>Final C Code</a>
-
-	    <h3>Appendix F -- References</h3>
-	    <br><a href=http://www.ansys-blog.com/advanced-design-electric-motors/> ANSYS Blog for Motor Efficiency Map</a>
-	    <br><a href=https://www.youtube.com/watch?v=spnl7JInMXc> Current Sensor Calibration Tutorial Video</a>
-	    <br><a href= https://www.digikey.com/product-detail/en/analog-devices-inc/AD5231BRUZ10-REEL7/AD5231BRUZ10-REEL7CT-ND/3314098> Digital Potentiometer Datasheet</a>
-	    <br><a href=https://www.reddit.com/r/arduino/comments/4lmb8z/i_made_a_cheap_torque_sensor_with_a_socket/> DIY Torque Sensor Using Arduino and Strain Gauges</a>
-	    <br><a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> Hall Effect Current Sensor ACS758 Datasheet</a>
-	    <br><a href=www.cs.cornell.edu/courses/cs1112/2017fa/files/Notes/egL18/L18post.pdf>CS1112 Lecture 18 Slides</a>
-	    <br><a href=https://www.mathworks.com/matlabcentral/answers/355102-how-to-draw-efficiency-map-contour-of-a-motor> Matlab Efficiency Map Contour Example</a>
-	    <br><a href=http://www.sensorland.com/HowPage002.html> Strain Gage Diagram</a>
-	    <br><a href = https://www.sparkfun.com/products/9299> Photointerrupter Product Information</a>
-	    <br><a href=https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html> Putty Download Link</a>
-	    <br><a href= http://people.ece.cornell.edu/land/courses/ece4760/PIC32/Target_board/serial_expander_dac_tft/Serial_fprmatted_BRL4.c> UART Serial Communication Example Code</a> 
-	    <br><a href=https://www.adafruit.com/product/954> UART to USB serial Cable Product Information</a>
-	    <br><a href=https://notendur.hi.is/rol/EIIa/EIIa2000/Taekniblod/AN078%20Strain%20gauge%20measurements.PDF> National Instruments Guide on Strain Gages</a>
-	    <br><a href=http://www.vishaypg.com/docs/11210/125tk.pdf> Vishay 125tk Data Sheet</a>
-	    <br><a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> ACS758 Data</a>
-	    <br><a href=http://www.ti.com/lit/ds/sbos078/sbos078.pdf> INA121 Datasheet</a>
-	    <br><a href=http://www.dtic.mil/docs/citations/ADA577582> US Army Lab Paper on Small Motor Dyno</a>
-	    <br><a href=http://www.bpesolutions.com/atechnical/ServoWire.Code.pdf> Servo Wire Code</a>
-	    <br><a href=http://people.ece.cornell.edu/land/courses/ece4760/#links> Answers to Anything PIC32: SPI, ADC, PWM, Pinout Diagram</a>
 
 	</body>
 </html> 
