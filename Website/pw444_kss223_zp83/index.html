@@ -170,7 +170,7 @@ end</b></pre>
 			    <figcaption>Fig.7 VGA Subsystem Qsys Configuration (Quartus IP)</figcaption>
 		    </figure>
 	    </center>
-	    <h4>Verilog </h4>
+	    <h4>Verilog Solver</h4>
 	    <p>The FPGA part of our system is mainly responsible for the whole process of searching the optimal string which would be added or removed on the canvas. It can be divided into two sections, control module and computation module. The control module is responsible for adjusting the calculation mode of computation one and interacting with the HPS, while the computation module is responsible for accumulating and outputting the error reduction of each string. The detail of two modules is discussed as follows.</p>
 		<center>
 		    <figure>
@@ -193,6 +193,8 @@ end</b></pre>
 		    </figure>
 	    </center>
 	    <p>As for control module, it follows the FSM illustrated in figure 10. It is an implementation of the greedy searching algorithm to reduce the error as much as possible. As mentioned in the paper, we need to jump back and forth between adding stage and removing stage. In adding stage,  the system searched for all the strings that could narrow the gap best up till now. In removing stage, the system would erased the over-evaluated strings. It also has two memory blocks, one ROM for pin position and one RAM for optimal pin pair. After reset states, in which the module would set the default value for all the signals, the module would enter add or remove states to complete the tasks described above. In this case, we should also pay attention to the latency of memory reading and computation module rdy/val interface. When the optimal pin pair indexes are obtained, the system would enter the update stage to store or remove the content in RAM block. When facing the problem of non consecutive memory after removing, we chose to set the corresponding value into 0, which was an invalid number for pin pair index. Although this method wasted some memory space, it saved the time of moving each element forward and accelerated the processing speed. Afterwards, it would wait for the response from HPS side to grab the results and draw on the screen. When it is found that no more required strings could be added or removed, the system would enter the status of completion.</p>
+	    <h4>Verilog VGA Graphics</h4>
+	    <p></p>
 	    <h4>HPS </h4>
 	    <p>In our system, the HPS component is responsible for precomputing the reference image and pin position of pixel. What’s more, it could draw the reconstructed image on the screen in real time to demonstrate how the system works explicitly. For image processing, we turned to the library of opencv, which is easy to be installed in linux environment and offers various functions. After reading the image as gray image, we would reverse it because it is easier to calculate when reconstructing the black area. The position of pins are assumed uniformly located along the  circumference. The data of image and pins’ position would be written into the file in hex format for FPGA to initialize the ROM. When FPGA is calculating, the HPS will wait for the valid data and draw the line added on the canvas. It is difficult to remove lines in real time since we cannot quickly calculate whether the pixel is covered by other strings or not. Therefore, we also had a hashset to track which one is removed. Finally, the HPS would redraw the image for performance comparison. </p>
 	    <h4> Testing Initial Design </h4>
