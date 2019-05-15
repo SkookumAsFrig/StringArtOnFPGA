@@ -37,7 +37,7 @@ table, th, td {
 		</div>
 		<p> The algorithm that Barton used to derive the processed images was developed by computer graphics researchers at TU Wien (Vienna University of Technology), which is outlined in detail in this <a href = https://www.cg.tuwien.ac.at/research/publications/2018/Birsak2018-SA/>paper</a>. In it, they formulate the problem mathematically and present their trials of different optimization methods to approach a good result, which in the end is judged subjectively by the human eye (as art should be, although they do present quantitative evaluation as well).</p>
 		<p> We will explain the algorithm in detail below, but the problem with the researchers' implementation of it in MATLAB is that it runs extraordinarily slow. Most of the inefficiency is a result of MATLAB being a script language that is compiled during execution. It took over 3 hours to generate the image of Albert Einstein above, and takes even more time for darker images that require more lines. Moreover, they have implemented matrix operations extensively to improve on the execution time from the original version, using a gigantic sparce matrix to convert from the space of edges to the space of pixels. For a 256 pin circular canvas on a 512x512 pixel image, that is a 262,144 by 130,560 matrix (assuming 4 possible edges per pin pair). This makes the code incapable of running on any computer with less than 32 GB of RAM, and even on a computer that satisfied such hardware requirements it filled 100% of the available memory.</p>
-		<p> <b>Thus our goal was to implement specialized solvers on the FPGA, and accelerate the computation of this greedy optimization problem.</b> Since Barton is making his hardware design open-source, this would contribute to allowing more people to build the full system without needing a high-end computer and a MATLAB license. We were successful in implementing a reduced version of the best algorithm from the paper that showed 80-100x acceleration in finding the result. However, we were not able to fit the supersampling portion on the DE1-SoC's FPGA due to memory constraints. Our design is presented below as well as further steps needed to achieve an equivalent result to the MATLAB program.</p>
+		<p> <b>Thus our goal was to implement specialized solvers on the FPGA, and accelerate the computation of this greedy optimization problem.</b> Since Barton is making his hardware design open-source, this would contribute to allowing more people to build the full system without needing a high-end computer and a MATLAB license. We were successful in implementing a reduced version of the best algorithm from the paper that showed over 100x acceleration in finding the result. However, we were not able to fit the supersampling portion on the DE1-SoC's FPGA due to memory constraints. Our design is presented below as well as further steps needed to achieve an equivalent result to the MATLAB program.</p>
 		<h2>High Level Design</h2>
 
 		<h3>Rationale</h3>
@@ -327,50 +327,50 @@ end</b></pre>
 	    <p> The following screenshots were obtained from running each of the above images.</p>
 	    <div class="flex-container">
 		    <figure>
-			    <img src="./Images/ada.png" alt="ada time" style="height:800px">
+			    <img src="./Images/ada.png" alt="ada time" style="height:700px">
 			    <figcaption>Fig.29 Time of Execution for <i>Penitent Magdalene</i> Image (Fig. 22) </figcaption>
 		    </figure>
 		    <figure>
-			    <img src="./Images/einstein1_darker.png" alt="einstein time" style="height:800px">
+			    <img src="./Images/einstein1_darker.png" alt="einstein time" style="height:700px">
 			    <figcaption>Fig.30 Time of Execution for Einstein Image (Fig. 24)</figcaption>
 		    </figure>
 	    </div>
 	    <div class="flex-container">
 		    <figure>
-			    <img src="./Images/turing.png" alt="turing time" style="height:800px">
+			    <img src="./Images/turing.png" alt="turing time" style="height:700px">
 			    <figcaption>Fig.31 Time of Execution for Turing Image (Fig. 26)</figcaption>
 		    </figure>
 		    <figure>
-			    <img src="./Images/peace.png" alt="peace time" style="height:800px">
+			    <img src="./Images/peace.png" alt="peace time" style="height:700px">
 			    <figcaption>Fig.32 Time of Execution for Peace Sign Image (Fig. 28)</figcaption>
 		    </figure>
 	    </div>
-	    <p> We also ran some of the images above in MATLAB for comparison. However, not all of the MATLAB runs were completed, since they were taking upwards of 12 hours with our serial implementation. So the table below compares their relative work efficiency, in edges added per second.</p>
+	    <p> We also ran some of the images above in MATLAB for comparison, with the same algorithm that we used for verification. However, not all of the MATLAB runs were completed, since they were taking upwards of 12 hours with our serial implementation. Since we had the MATLAB code occasionally print out running time and number of edges added, we can show the table below which compares their relative work efficiency, in edges added per second.</p>
 	    <center>
-		    <table style="width:800px">
+		    <table style="width:900px">
 			    <tr>
 				    <th>Image</th>
 				    <th>MATLAB Rate (Edges Per Second)</th>
 				    <th>FPGA Rate (Edges Per Second)</th> 
-				    <th>Acceleration</th>
+				    <th>Acceleration (FPGA/MATLAB)</th>
 			    </tr>
 			    <tr>
 				    <td><i>Penitent Magdalene</i></td>
-				    <td>Einstein</td> 
-				    <td>Turing</td>
-				    <td>Peace</td>
+				    <td>0.0286</td> 
+				    <td>5.144</td>
+				    <td>179.86</td>
 			    </tr>
 			    <tr>
-				    <td>Einstein</td> 
-				    <td>Jackson</td> 
-				    <td>94</td>
-				    <td>94</td>
+				    <td>Einstein</td>
+				    <td>0.0416</td> 
+				    <td>5.182</td>
+				    <td>124.57</td>
 			    </tr>
 			    <tr>
 				    <td>Turing</td>
-				    <td>Jackson</td> 
-				    <td>94</td>
-				    <td>94</td>
+				    <td>0.0284</td> 
+				    <td>5.108</td>
+				    <td>179.86</td>
 			    </tr>
 		    </table>
 	    </center>
