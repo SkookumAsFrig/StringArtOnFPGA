@@ -1,0 +1,2 @@
+ThreadThickness:0.15
+SourceImagePath:../example/cat.png

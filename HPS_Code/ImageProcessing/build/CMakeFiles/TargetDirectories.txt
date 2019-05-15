@@ -1,0 +1,3 @@
+/home/ubuntu/ece5760/git/String-Art/build/CMakeFiles/rebuild_cache.dir
+/home/ubuntu/ece5760/git/String-Art/build/CMakeFiles/String-Art.dir
+/home/ubuntu/ece5760/git/String-Art/build/CMakeFiles/edit_cache.dir
