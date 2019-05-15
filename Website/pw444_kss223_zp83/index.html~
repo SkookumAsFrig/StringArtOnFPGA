@@ -114,9 +114,9 @@ end</b></pre>
 		else
 			P = P+2dy-2dx;
 			o_y++;
-		end
-	end
-end</b></pre>
+									end
+									end
+									end</b></pre>
 	   -->
 	   <h3>Logical Structure</h3>
 	   <p>While the optmization algorithm above may not be difficult to implement in other programming languages, on the FPGA data storage and access can be rather challenging. For the process outlined by the pseudo-code above, we need a large patch of RAM to store the active canvas, which will be written to in the add/remove stage and read from when downsampling/calculating difference. The downsampling result potentially needs its own memory block, but can be buffered in registers if the difference calculation is done on the fly. The original image will also be needed but not modified, so that can be stored in a ROM patch. In addition, since verilog does not come with math libraries, the calculation of the pin pixels would have to be done with a sine/cosine lookup table if done online. That will take up storage space and repeate unnecessary calculations in each iteration, so the better option is to precompute those and also store them in a ROM block. Lastly, for manufacturability the output has to be stored as well. So the overall logical structure will be similar to the diagram below, excluding any additional processing that the HPS side could perform.</p>
@@ -131,7 +131,7 @@ end</b></pre>
 	   <p>Our goal was to accelerate the solver process, so speed of execution was the first focus of the design. This means keeping as much memory as possible on the native FPGA hardware, as that allows for the lowest delay acess and highest bandwidth with the possibility of parallelism. However, since memory was never a bottleneck in previous labs, we did not realize the DE1-SoC was actually quite limited in this resource. There are only about 3900 Kbits available in M10K blocks and only about 307 Kbits available in MLAB blocks. The 1GB DDR3 external SDRAM only has 64MB available through Qsys, and the rest is managed by the HPS operating system meaning about 10 FPGA clock cycle access delays.</p>
 	   <p>To put this into perspective, a 8x supersampled 512x512 image results in a 4096x4096 matrix, and assume that each pixel has 8 bits to store the canvas edge information. The canvas RAM alone represents 16MB of RAM, far more than all on chip resources combined. The original image is 512x512 with 8 bit pixel depth, so the ROM will occupy an additional 256KB. Pin position ROM is smaller with 12 bits for each coordinate (assuming 4096 pixel canvas), but two of those will be needed for simultaneous read. With the standard 256 pin frame, that is 1.5KB of ROM. Lastly, the best edge in each iteration needs to be stored as well, not just for manufacturability but also for the removal stage iteration. For easy processing and reduced storage space, we can store just the corresponding pin position pair indices (2x8 = 16 bits for 256 pins). The total size of this is rather tricky, as it really should be a dynamically managed memory that grows with the number of edges. From our simulation in MATLAB, we did not see more than 2000 edges being drawn, so 2048 appears to be an acceptable fixed memory length. This results in a 4KB block of RAM.</p>
 	   <p>At this point it became obvious to us that the vanilla optimization algorithm as presented in the paper is unviable for implementation directly on our FPGA, purely due to memory constraints. The total needed memory would be 16MB + 256KB + 1.5KB + 4KB. Since we would like to have the system draw the edges in real time during the solving process, we did not want to touch the offchip SDRAM, as moving the Altera IP VGA Subsystem off the buffer could prove to be a challenge in itself. In addition, we needed simultaneous access to at least the image and canvas blocks, which would be rather complicated to convert to a serial process (and possible involve Qsys challenges) if SDRAM is used.</p>
-	   <p><b>Thus we decided to implement a reduced version of the final optimization algorithm that can be fit in the on-chip resources. The main reduction would be to eliminate the supersampling, which also removes the need for downsampling. </b>This makes the canvas memory significantly smaller. Although the results will have similar problems as shown in some trial images of figure 4, it would show if this implementation can achieve acceleration at all. The laters steps of implementing larger storage could be done on this base algorithm, and the algorithmic improvements can then be easily made. A MATLAB version of this is linked here, and the pseudo-code is shown below.</p>
+	   <p><b>Thus we decided to implement a reduced version of the final optimization algorithm that can be fit in the on-chip resources. The main reduction would be to eliminate the supersampling, which also removes the need for downsampling. </b>This makes the canvas memory significantly smaller. Although the results will have similar problems as shown in some trial images of figure 4, it would show if this implementation can achieve acceleration at all. The laters steps of implementing larger storage could be done on this base algorithm, and the algorithmic improvements can then be easily made. A MATLAB version of this is <a href = https://github.com/SkookumAsFrig/StringArtOnFPGA/tree/master/Paper_MATLABCode/MATLAB_Time_Results/Example_Algo>linked here</a>, and the pseudo-code is shown below.</p>
 
 	   <!--
 	    <pre><b>Initial white canvas (512x512);
@@ -154,181 +154,111 @@ end</b></pre>
 	    <p>There are no patents that we are aware of relating to this project. However, there have been previous work done on this topic in addition to the research paper that we extensively referenced. Artist <a href = http://artof01.com/vrellis/works/knit.html>Petros Vrellis</a> has written his own algorithm for hand production of the same type of string art, even for <a href = https://www.saatchiart.com/account/artworks/858823>colored versions</a>. He has also collaborated with a father and son duo of MIT professors to create the <a href = http://erikdemaine.org/fonts/stringart/>String Art Font</a>.</p>
 
 	    <h2>Program/Hardware Design</h2>
-
 	    <h3>Program Overview </h3>
+	    <center>
+		    <figure>
+			    <img src="./Images/overallsystem.jpg" alt="Overall System" style="width:600px">
+			    <figcaption>Fig.6 Overall System Block Diagram</figcaption>
+		    </figure>
+	    </center>
 	    <h4>Qsys </h4>
 	    <p>The Qsys interconnection of our design is quite simple. The bus master of HPS and output from vga DMA controller are connected to SDRAM for writing and reading the pixel value. The seven pio ports are set up for data communication between HPS and FPGA, including ready and valid signal, optimal pin pair, add or remove flag and finish signal. Following figures show the details of Qsys configuration.</p>
 	    <center>
 		    <figure>
 			    <img src="./Images/OverallQsys.jpg" alt="Overall Qsys" style="width:800px">
-			    <figcaption>Fig.6 Overall Qsys with PIO Configuration</figcaption>
+			    <figcaption>Fig.7 Overall Qsys with PIO Configuration</figcaption>
 		    </figure>
 	    </center>
 	    <center>
 		    <figure>
 			    <img src="./Images/VGASS.jpg" alt="VGA Subsystem" style="width:600px">
-			    <figcaption>Fig.7 VGA Subsystem Qsys Configuration (Quartus IP)</figcaption>
+			    <figcaption>Fig.8 VGA Subsystem Qsys Configuration (Quartus IP)</figcaption>
 		    </figure>
 	    </center>
 	    <h4>Verilog Solver</h4>
 	    <p>The FPGA part of our system is mainly responsible for the whole process of searching the optimal string which would be added or removed on the canvas. It can be divided into two sections, control module and computation module. The control module is responsible for adjusting the calculation mode of computation one and interacting with the HPS, while the computation module is responsible for accumulating and outputting the error reduction of each string. The detail of two modules is discussed as follows.</p>
-		<center>
+	    <center>
 		    <figure>
 			    <img src="./Images/rdy_val_interface.png" alt="rdy_val Interface" style="width:500px">
-			    <figcaption>Fig.8 Control and Communication Signal Interface</figcaption>
+			    <figcaption>Fig.9 Control and Communication Signal Interface</figcaption>
 		    </figure>
 	    </center>
-	    <p>First, we want to introduce some design principles adopted in our system. Considering the mobility and robustness of the system, a well-designed and general communication interface is necessary to improve the performance and handle the problem of communication between latency-sensitive modules. Therefore, we adopted the idea of rdy/val interface, which is demonstrated in figure 8 above. It can be seen as a handshake agreement between two modules and transaction would cross the interface only if source output is valid and sink input port is ready.   Even for the cross-time domain transactions like communication between HPS and FPGA, the whole system could stall waiting for the response from HPS side.  Another method we used in our system is finite state machine, which could help us to divide the whole process into several steps. Therefore we could implement the system incrementally, which is easier and more efficient.  In addition, the more complex the system is, the more control signals it has. However, these signals are responsible for different states. Finite state machine could help us manage and trace them better and make the system insensitive to the irrelevant control signals for certain stage.</p>
+	    <p>First, we want to introduce some design principles adopted in our system. Considering the mobility and robustness of the system, a well-designed and general communication interface is necessary to improve the performance and handle the problem of communication between latency-sensitive modules. Therefore, we adopted the idea of rdy/val interface, which is demonstrated in figure 9 above. It can be seen as a handshake agreement between two modules and transaction would cross the interface only if source output is valid and sink input port is ready.   Even for the cross-time domain transactions like communication between HPS and FPGA, the whole system could stall waiting for the response from HPS side.  Another method we used in our system is finite state machine, which could help us to divide the whole process into several steps. Therefore we could implement the system incrementally, which is easier and more efficient.  In addition, the more complex the system is, the more control signals it has. However, these signals are responsible for different states. Finite state machine could help us manage and trace them better and make the system insensitive to the irrelevant control signals for certain stage.</p>
 	    <center>
 		    <figure>
 			    <img src="./Images/Compute_FSM.png" alt="Compute State Machine" style="width:500px">
-			    <figcaption>Fig.9 Compute Finite-State Machine</figcaption>
+			    <figcaption>Fig.10 Compute Finite-State Machine</figcaption>
 		    </figure>
 	    </center>
-	    <p>In terms of the detailed architecture of the computation module, as shown in figure 9, it contains three stages, including idle, work and output stages. In idle stage, the module will initialize the variables and waiting for the requests from control module. As soon as the request is valid, it would calculate the input arguments of bresenham algorithm in one cycle. For work stage, it has four modes to select. The module would calculate the error reduction when adding or removing a string in mode 1 and mode 3 respectively. And it would add or remove the optimal string in mode 2 and mode 4. In fact, the computation module contains two memory blocks, one ROM for reference image and one RAM for reconstructed image. Each cell in ROM stored the gray value of the corresponding pixel in the original image with 8 bits and each cell in RAM stored the count of strings covering each pixel with 4 bits. There is one thing to note that it is possible the maximum number of covering strings is out of the range of 4 bits. However, based on our MATLAB testing, the count value cannot decrease from 15 to 0 in remove stage. It is sufficient to use 4 bits to express, which is also the best we can do to fit in the DE1-SOC memory. What’s more, we need to carefully handle the latency of memory read and write, especially when updating the content of RAM block. We designed a memory address storage pipeline due to that we need to read and write back the content resulting in two cycles latency. In output stage, the module would export the results and wait for the ready signal of control module.</p>
+	    <p>In terms of the detailed architecture of the computation module, as shown in figure 10, it contains three stages, including idle, work and output stages. In idle stage, the module will initialize the variables and waiting for the requests from control module. As soon as the request is valid, it would calculate the input arguments of bresenham algorithm in one cycle. For work stage, it has four modes to select. The module would calculate the error reduction when adding or removing a string in mode 1 and mode 3 respectively. And it would add or remove the optimal string in mode 2 and mode 4. In fact, the computation module contains two memory blocks, one ROM for reference image and one RAM for reconstructed image. Each cell in ROM stored the gray value of the corresponding pixel in the original image with 8 bits and each cell in RAM stored the count of strings covering each pixel with 4 bits. There is one thing to note that it is possible the maximum number of covering strings is out of the range of 4 bits. However, based on our MATLAB testing, the count value cannot decrease from 15 to 0 in remove stage. It is sufficient to use 4 bits to express, which is also the best we can do to fit in the DE1-SOC memory. What’s more, we need to carefully handle the latency of memory read and write, especially when updating the content of RAM block. We designed a memory address storage pipeline due to that we need to read and write back the content resulting in two cycles latency. In output stage, the module would export the results and wait for the ready signal of control module.</p>
 	    <center>
 		    <figure>
 			    <img src="./Images/Ctrl_FSM.png" alt="Control State Machine" style="width:600px">
-			    <figcaption>Fig.10 Control Finite-State Machine</figcaption>
+			    <figcaption>Fig.11 Control Finite-State Machine</figcaption>
 		    </figure>
 	    </center>
-	    <p>As for control module, it follows the FSM illustrated in figure 10. It is an implementation of the greedy searching algorithm to reduce the error as much as possible. As mentioned in the paper, we need to jump back and forth between adding stage and removing stage. In adding stage,  the system searched for all the strings that could narrow the gap best up till now. In removing stage, the system would erased the over-evaluated strings. It also has two memory blocks, one ROM for pin position and one RAM for optimal pin pair. After reset states, in which the module would set the default value for all the signals, the module would enter add or remove states to complete the tasks described above. In this case, we should also pay attention to the latency of memory reading and computation module rdy/val interface. When the optimal pin pair indexes are obtained, the system would enter the update stage to store or remove the content in RAM block. When facing the problem of non consecutive memory after removing, we chose to set the corresponding value into 0, which was an invalid number for pin pair index. Although this method wasted some memory space, it saved the time of moving each element forward and accelerated the processing speed. Afterwards, it would wait for the response from HPS side to grab the results and draw on the screen. When it is found that no more required strings could be added or removed, the system would enter the status of completion.</p>
+	    <p>As for control module, it follows the FSM illustrated in figure 11. It is an implementation of the greedy searching algorithm to reduce the error as much as possible. As mentioned in the paper, we need to jump back and forth between adding stage and removing stage. In adding stage,  the system searched for all the strings that could narrow the gap best up till now. In removing stage, the system would erased the over-evaluated strings. It also has two memory blocks, one ROM for pin position and one RAM for optimal pin pair. After reset states, in which the module would set the default value for all the signals, the module would enter add or remove states to complete the tasks described above. In this case, we should also pay attention to the latency of memory reading and computation module rdy/val interface. When the optimal pin pair indexes are obtained, the system would enter the update stage to store or remove the content in RAM block. When facing the problem of non consecutive memory after removing, we chose to set the corresponding value into 0, which was an invalid number for pin pair index. Although this method wasted some memory space, it saved the time of moving each element forward and accelerated the processing speed. Afterwards, it would wait for the response from HPS side to grab the results and draw on the screen. When it is found that no more required strings could be added or removed, the system would enter the status of completion.</p>
+	    <h4>Memory</h4>
+
+	    <p>Apart from two main modules in our system, memory blocks play an important role in storing the data. There are many methods to infer memory in the design,  but we directly used the template offered by Quartus software, which contains the verilog schematic for various memory behaviour. For DE1-Soc device, it offers three sources to synthesize the memory blocks, including M10K, MLAb and logic. Combining with the synthesis attribution, we can assign which source to synthesize certain module. There is one thing to mention that one memory block can only be synthesized by only one source, therefore, we need to optimize the management of resources to maximize the usage ratio of memory. In general, M10K block is preferred to store large consecutive data array with the volume of exponent of 2, while logic and MLAB are preferred to store small number of data with more flexibility. What’s more, comparing with MLAB, memory synthesized by logic is more time consuming and occupies the resources for other logic components. Considering the characteristics mentioned above, The ROM for reference image and RAM for reconstructed image are synthesized by M10K blocks, while the ROM for pixel position of pins and the RAM for added strings are synthesized by MLAB.</p>
+	    <p>After obtaining the initialization file of memory from HPS side, we used the system task of $readmemh in initial block to initialize two ROMs in our design. The format is shown below. The first argument is the path of file and the second one is the memory block variable name.</p>
+	    <center>
+		    <p>$readmemh(filePath, mem) </p>
+	    </center>
+	    <p>As mentioned in high level tradeoffs, due to the sizable reduction in memory requirements when supersampling is removed, we were able to fit all 5 blocks of memory (4 different types) into hardware resources. The original image is still 512x512 with 8 bit pixel depth, and its ROM occupies 256KB. The canvas, however, is scaled down to only require 512x512 with 4 bit range, and its RAM occupies 128KB. Together with the image ROM they use up 100% of the M10K blocks (384KB). The two pin position ROM blocks and the edge RAM block are synthesized to use MLAB as mentioned above. The pin positions only require 9 bits for each coordinate now, so the total MLAB usage is around 1KB + 4KB from edge RAM block= 5KB. It is worth mentioning that we opted to use the parameterized module functionality of Verilog in constructing the different memory blocks. This way changes to the length and data width can be made easily where they are declared, and not require editing the memory file every time.</p>
+		<center>
+		    <figure>
+			    <img src="./Images/memory.png" alt="Parameterized Memory" style="width:600px">
+			    <figcaption>Fig.12 Parameterized Memory Block</figcaption>
+		    </figure>
+	    </center>
 	    <h4>Verilog VGA Graphics</h4>
-	    <p>As for control module, it follows the FSM illustrated in figure 10. It is an implementation of the greedy searching algorithm to reduce the error as much as possible. As mentioned in the paper, we need to jump back and forth between adding stage and removing stage. In adding stage,  the system searched for all the strings that could narrow the gap best up till now. In removing stage, the system would erased the over-evaluated strings. It also has two memory blocks, one ROM for pin position and one RAM for optimal pin pair. After reset states, in which the module would set the default value for all the signals, the module would enter add or remove states to complete the tasks described above. In this case, we should also pay attention to the latency of memory reading and computation module rdy/val interface. When the optimal pin pair indexes are obtained, the system would enter the update stage to store or remove the content in RAM block. When facing the problem of non consecutive memory after removing, we chose to set the corresponding value into 0, which was an invalid number for pin pair index. Although this method wasted some memory space, it saved the time of moving each element forward and accelerated the processing speed. Afterwards, it would wait for the response from HPS side to grab the results and draw on the screen. When it is found that no more required strings could be added or removed, the system would enter the status of completion.</p>
+	    <p>We used  <a href = http://people.ece.cornell.edu/land/courses/ece5760/DE1_SOC/HPS_peripherials/univ_pgm_computer.index.html>Video VGA 640x480 displayed from SDRAM, in 16-bit color</a>, from the ECE 5760 University Computer Graphics page as the base of the outermost module in our design. Since we wanted to use FPGA purely for computation, this was necessary to have the HPS control realtime drawing on the monitor. We had to make some modification as shown in the Qsys design, since the original on-chip SRAM is disconnected but takes up precious memory needed by the solver. That was removed entirely, and we interfaced the rest of the system with the DE1_SoC_Computer design.</p>
+
 	    <h4>HPS </h4>
 	    <p>In our system, the HPS component is responsible for precomputing the reference image and pin position of pixel. What’s more, it could draw the reconstructed image on the screen in real time to demonstrate how the system works explicitly. For image processing, we turned to the library of opencv, which is easy to be installed in linux environment and offers various functions. After reading the image as gray image, we would reverse it because it is easier to calculate when reconstructing the black area. The position of pins are assumed uniformly located along the  circumference. The data of image and pins’ position would be written into the file in hex format for FPGA to initialize the ROM. When FPGA is calculating, the HPS will wait for the valid data and draw the line added on the canvas. It is difficult to remove lines in real time since we cannot quickly calculate whether the pixel is covered by other strings or not. Therefore, we also had a hashset to track which one is removed. Finally, the HPS would redraw the image for performance comparison. </p>
-	    <h4> Testing Initial Design </h4>
-	    <p> Before we tested with strain gauges, we built a quarter bridge with a 10K potentiometer as our active component. We achieved a gain of approximately 100 with this test circuit, so we then mounted two strain gauges on the shaft, and transferred our circuit to a breadboard. However, we found that the potentiometer was difficult to tune and keep stable.
-	    <p> To achieve finer resolution, we used a <a href= https://www.digikey.com/product-detail/en/analog-devices-inc/AD5231BRUZ10-REEL7/AD5231BRUZ10-REEL7CT-ND/3314098> digital potentiometer</a> which has 10-bit resolution for the self-balancing quarter of the static half of the bridge. We interfaced with the potentiometer using SPI, and used the chip select (RB4), Clock (RB15) and Serial Data Output (RB5) on the PIC32. By sending 32 bit control words with MSB as 0xE or 0x6 (as seen from AD5231 data sheet), we can command it to either increase or decrease the resistance by 1/1024 levels. Combined with a simple conditional statement in a loop, the circuit becomes self balancing. By putting this 10k digipot (measured 8.6k) in series with 15 kOhm resistors (one quarter of the bridge) and balancing that against a 20 kOhm resistor (the other quarter of the bridge), we were able to achieve a theoretical balance accuracy of 0.05%. In practice it was closer to 4-5% accuracy, possibly due to noisey power supplies or amplifier drift.</p>
-	    <h4> Final Design </h4> 
-	    <p>Our final circuit design with adjusted resistor values was the following: </p>
-
-	    <center>
-
-		    <img src="./Images/final_strain_circuit.png" alt="final strain circuit" style="width:1104px;height:616px;">
-
+	    <h3>RTL Diagrams </h3>
+		<h4>Outer Control Module</h4>
+		<center>
+		    <figure>
+			    <img src="./Images/RTL.png" alt="Add_Remove_Search" style="width:1000px">
+			    <figcaption>Fig.13 Control Module Overall RTL Diagram</figcaption>
+		    </figure>
 	    </center>
-
-	    <p>The labeled instrumentation circuit minus the filters can be seen below: </p>
-
 	    <center>
-
-		    <img src="./Images/Instru.jpg" alt="final strain circuit" style="width:540px;height:303.5px;">
-
+		    <figure>
+			    <img src="./Images/pinpos12mem.png" alt="Pin Pose Mem" style="width:700px">
+			    <figcaption>Fig.14 Pin Position Memory Connections in Control Module</figcaption>
+		    </figure>
 	    </center>
-
-	    <h4> Filtering noise </h4>
-
-	    To filter noise at both the input to the wheatston bridge and output of the amplifier, we implemented 2 identical low pass RC circuits with cut off frequencies of approximately 20 Hz. The resistors were 800 ohms and the capacitor values were 10 uF.
-
-
-	    <h3> Measuring Torque </h3>
-	    <p>
-	    The output of the instrumentation amplifier plus filter is wired to the third ADC channel on the PIC. In the currSensor thread, the raw adc value is read approximately 120 seconds after the program has started. The raw_p value is used to determine and filter the strain on the shaft. The equation for this IIR filter is: strain_filt = strain_filt + (raw_p - strain_filt)/16, where strain_filt is the filtered strain value, raw_p is the raw adc input and 16 is a set prescale. strain_filt is initialized to init_strain which is the first raw_p value read when the 120 sec counter runs out. Then, torque is calculated by taking the difference of the current strain_filt and the init_strain (initial strain) and dividing by 156. The 156 was determined by the water bottle method described above.
-	    </p>
-	    <p>	
-
-
-	    <h3>Measuring Current</h3>
-	    <p> We measured the current from our motor voltage source using a Hall Effect Current Sensor. The datasheet for the sensor we used can be downloaded from <a href=http://www.allegromicro.com/en/Products/Current-Sensor-ICs/Fifty-To-Two-Hundred-Amp-Integrated-Conductor-Sensor-ICs/ACS758.aspx> here</a> under the datasheets tab on the side, here's the pin diagram of the sensor taken from the datasheet:
-	    <br>
 	    <center>
-		    <img src="./Images/current_sensor_pinout.jpg" alt="current sensor" style="width:1000px;height:300px;"> 
+		    <figure>
+			    <img src="./Images/pinpairmem.png" alt="Edge Mem" style="width:700px">
+			    <figcaption>Fig.15 Edge Memory Connections in Control Module</figcaption>
+		    </figure>
 	    </center>
-	    <br>
-	    The Hall Effect Current Sensor outputs a voltage level that is proportional to the input current. The current to be measured is run through the two large pins on the left side of the diagram and the corresponding voltage is measured from VIOUT and GND on the other side. This voltage is fed to an ADC on the PIC32 to be used in further calculations.
-	    <br>
-	    <br>
-	    Additional calculation and calibration is required, however, to convert the ADC readings into amps. The calibration process we used was based off of this <a href=https://www.youtube.com/watch?v=spnl7JInMXc> video</a>
-	    <br>
-	    <br>
-	    To convert the ADC reading, we first put the reading in terms of voltage. This is a simple conversion ratio matching the upper limit of the ADC (1024) to the supply voltage used (in this case 3.3 V). Next to makes this value in terms of current, we must find the change in amps corresponding to a given increase in voltage. To find this, we applied a current source set to every 0.25 amps from 0 to 2 A and measured the voltage read from the sensor. Once enough trials are collected, we then calculate the average change in voltage per amp and use that as our conversion factor. The datasheet lists the sensitivity of this part as 40 mV/A and our testing confirmed this value. One last step for calibration is accounting for the offset in the ADC measurements when no current is applied. This can be done either through hardware or software; we tried both options, and found that the software offset resulted in the correct amperage readings while the hardware offset did not.
-	    <br>
-	    <br>
-	    The software offset is done by measuring the ADC value seen with no current applied on the left terminals; during our testing, we saw and ADC value of 128. We then hard-coded it to subtract this value from all subsequent ADC measurements used in calculation of voltage and current. In summary, here are the calculations required for calibration.
-	    <br>
-	    <br>
+		<h4>Inner Compute Module </h4>
+		<center>
+		    <figure>
+			    <img src="./Images/BhamSolver.png" alt="Bham_Solver" style="width:1000px">
+			    <figcaption>Fig.16 Compute Module Overall RTL Diagram</figcaption>
+		    </figure>
+	    </center>
 	    <center>
-		    adc_raw = adc reading - 128
-		    <br>
-		    voltage reading = adc_raw * (3.3V / 1024)
-		    <br>
-		    current reading = voltage reading / (0.040 V / 1 A)
+		    <figure>
+			    <img src="./Images/bhamem.png" alt="Bham Mem" style="width:800px">
+			    <figcaption>Fig.17 Image ROM and Canvas RAM Connections in Compute Module</figcaption>
+		    </figure>
 	    </center>
-	    </p> 
-
-	    <h3>Measuring Voltage</h3>
-	    <p> The input voltage to the motor is measured by connecting a wire parallel to the positive terminal of the power supply, which is then put through a 1:3 voltage divider made up of high resistance resistors, with the output being a quarter of the input voltage. This is to protect the MCU if we decide to run the motor as high as 12V. The output is then measured by the ADC, and calculation is done to reverse the voltage divider to get the voltage that the motor is acutally seeing.</p>
-
-	    <p> To get voltage, current sensor and strain gage to work together, we needed 3 ADC channels. However, the conventional method with muxes only allows up to 2. Thus we had to switch ADC to SCAN mode, and read the scanned results in buffers 0, 1 and 2 for the 3 ADC results.</p>
-
-	    <h3>Measuring RPM</h3>
-
-
-	    <p> To measure the rate of the motor, we used a <a href = https://www.sparkfun.com/products/9299>photo interrupter</a>, an infrared light sensor that can detect when an object passes between two uprights. One of the uprights on the sensor contains an infrared emitter and the other contains an infrared emitter. </p>
-
 	    <center>
-		    <img src="./Images/CAD3.jpg" alt="gauge factor eqn" style="width:325px;height:325px;">
+		    <figure>
+			    <img src="./Images/statemachine.png" alt="Controller" style="width:700px">
+			    <figcaption>Fig.18 Control State Machine in Compute Module</figcaption>
+		    </figure>
 	    </center>
-
-	    <p> To initially test if the sensor works, we supplied 5 V to the sensor and wired it to the oscilloscope. When the gate of the sensor is clear, the oscilloscope showed a straight line at approximately 5 V. When something obstructs the gate, the signal drops to approximately 0 V.  Once we tested this, we mounted the sensor onto the mechanical setup so that every time the motor rotates, we can measure it’s frequency and thus, the RPM. </p>
-	    <p> To periodically read the sensor, we have an interrupt service routine that reads the input capture at the rising edge of the clock. This means that for every rotation the sensor outputs either 5 V or 0 V which is then read by the input capture. The setup for this is: OpenCapture4(  IC_RISE_EDGE | IC_INT_4CAPTURE | IC_TIMER3_SRC | IC_ON ) and ConfigIntCapture4(IC_INT_ON | IC_INT_PRIOR_3 | IC_INT_SUB_PRIOR_3 ). This sets up the time capture and turns on the interrupt so that every capture can be recorded. In the PID thread, if the timeCapture is equal to 0, we set the timeCapture to 1 (to later avoid a divide by 0) and continuously calculate the raw RPM with the following equation: </p>
-	    <p> Plugging in the values into the equation, we get 9375000. We then divide that by the time capture to get the final, raw RPM value. Then, we applied an IIR filter by initializing a variable, rpm_filt to zero, calculating the difference of the raw rpm value and previous rpm value, dividing that by 16 and adding it to rpm_filt. This filter was initially added to help stabilize RPM values, but we used the raw rpm values for our control mechanism at the end because we found that the raw rpm values matched the tuned system better.   
-	    <center>
-		    <img src="./Images/rpm_calculation.png" alt="gauge factor eqn" style="width:325px;height:200px;">
-	    </center>
-
-	    <h3>Finding Power/Efficiency</h3>
-	    <p> The DC input power is simply V*A, which can be found by multiplying the measured voltage with current. However, the mechanical output power is more complicated. Rotational mechanical power is defined as torque multiplied by the angular velocity, in units of radians per second. So we had to convert the measured RPM to rads/sec and multiply that by the torque in N-m to get at power in Watts.</p>
-
-	    <p> To get efficiency, we took the output power and divided it by the input power. It is multiplied by 100 for display in percent.</p>
-
-	    <h3>Servo/Motor Controller</h3>
-
-	    <p> Servo controls were simple but tricky to figure out at first. They basically have their own control system inside that reads a PWM high-pulse anywhere between 1-2ms (on the white signal line, red for power and black is common ground), and sends the servo to maintain the proportional angle. So if we send a 1ms pulse, the servo goes to its minimum position, and 2ms it goes to the max. We used digital servos which responded faster than analog ones, and were more precise in its maneuvers.</p>
-
-	    <p> We originally had a motor controller for the DC motor that malfunctioned, so we just varied the voltage on the high-current supply for control. However,the control for that is very much the same as the servo controls; 1.5ms duty cycle for neutral, and 2ms for full forward power. In the future, we would not be able to directly drive a brushless motor off a power supply, so this would be very useful for our custom motor controller(we kept the code).</p>
-
-	    <h3>Serial Communication and Data Analysis</h3>
-	    <p>To save our data, we chose UART to serially communicate between the PIC32 and the computer. We used a <a href=https://www.adafruit.com/product/954> UART to USB serial cable</a>, and the transmit/receive setup from <a href= http://people.ece.cornell.edu/land/courses/ece4760/PIC32/Target_board/serial_expander_dac_tft/Serial_fprmatted_BRL4.c> this </a> protothreads example. 
-	    All we needed to do was transmit rpm and voltage from the PIC32 to the computer, so we instantiated pt_input, pt_output, pt_DMA_output for UART control. These threads are written and spawned from pt_cornell_1_2_2 and config_1_2_2 every time we want to send information. These files also set up the UART and DMA pins and initializations. To send information, we store our message to the PT_send_buffer buffer and then call PT_SPAWN on pt_DMA_output and PT_DMA_PutSerialBuffer.</p> 
-
-	    <p>On the computer, we use <a href=https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html>Putty</a> to both view and log our data. Every time we run the system and have Putty open, the data is auto-saved and can be used by going to PuTTY -> PuTTY Configuration -> Session -> Logging. In Logging, locate or create a directory to save the data, and give a file name. We use "&H-&Y&M&D-&T.log" in our final project folder so that a new file is created everytime. Note that if you choose a specific file name (i.e "testfile.log"), the data will either be overwritten or appended to previously collected data. Alternatively, you can choose "Ask the user every time". Then, click on Session -> Default Settings -> Save to make this logging format your default setting.  
-
-	    <h3>Data Processing and Visualization</h3>
-
-	    After logging a text file from putty and saving to a directory, we processed and visualized the rpm, torque and efficiency of the motor with a contour map in Matlab. Our text file contained a header with the date and time of the data collected and then 10 rows containing torque, rpm and efficiency. To process and read the data we followed the following steps:
-	    <ul>
-		    <li> Read the text file and parse the file to get rid of unwanted to spaces/tabs at the beginning and end of lines using the regexprep function. This function essentially gets rid of or replaces text using regular expression. </li>
-		    <li>Open and write the contents of the parsed data into a variable, fid, which contains the file id. By calling various functions on the file id, we can read/write lines in the file since each line is stored as a cell. </li>
-		    <li>Then, we check for lines that we want to skip in the data file. The default value for this parameter is zero, but since there is a default header in Putty as well as misc data that can be collected when our control loop is running, we skip these lines and update the fid to the next line using fget1 on the file id. Here, we skip over the lines in a for loop. </li>
-		    <li> To read the data line by line, we have a while loop that runs until it hits the last line of the file. If the line length is greater than 1, we scan the line for float values and store each detected value in its respective array – R for rpm, T for torque, E for efficiency. We check if the line has more than one character because we noticed that when we stopped logging, empty lines or lines with single values would also be written to our file. This occurs because we stop manually stop the logging. </li>
-		    <li> After closing the file, we calculate the length of each array and resize them to make sure they are of the same size by checking if the sizes are equal, and if they are not, we resize them to the smallest array’s size. </li>
-	    </ul>
-	    To visualize efficiency of a motor, a contour map is frequently used because motors have a large operating range, and an efficiency value for each operating point can be observed with a contour map. In this case, the RPM values are on the X axis and Torque on the Y axis. The efficiency is on the Z axis and is mapped to the respective (RPM, Torque) values.
-	    <ul>
-		    <li> To produce the contour map, the minimum and maximum values of the rpm and torque are used to produce a 100 point linearly spaced vector. </li>
-		    <li> Then, a mesh grid, which returns two dimensional grid coordinates of the rpm and torque is produced. </li>
-		    <li>  Using the grid coordinates and coordinates of efficiency, the griddata function fits the a surface to efficiency = (rpm, torque) and interpolates the surface at the points specified by the grid mesh. </li>
-		    <li>The contourf function is called on the rpm, torque and efficiency vectors and the graph is then labeled. </li>
-	    </ul>
-	    All of this processing was put in a function with two input parameters: 1) filename, which takes a string input of the file in the current directory, and 2) skipl, which takes an integer value of how many lines, if any, to skip in the text file.
-
-	    <h3>Test Sequence </h3>
-	    <h4> Sequence Overview </h4>
-	    <p> Upon reset, the system will begin runing our preprogrammed test sequence. The test sequence uses the first 120 seconds for calibration of the strain gauges and digital potentiometer; during this period the servos remain opened and sensor data is not sent over UART. Next the system must measure the no load RPM resulting from the selected voltage level. After the no load RPM is measured, then the program begins breaking (using the servos) to reach different percentages of the RPM. The torque, RPM, and calculated efficiency at these designated RPMs are then saved and transmitted. In our test sequence, the measured RPMS are: no load, 95%, 90%, 85%, 80%, 75%, 70%, 65%, 60%, and 55%. We initially wanted to take data by decresing the percentage by 10%, however, we found that if the RPM got too low, then the servo would immediately stop the rotating shaft and the system would stall since RPM could not get any lower. Between each of the data collection states, we pause transmission and allow the servos time to break to reach the desired RPM. This increases the accuracy of our measurements for torque, which is a running average, by eliminating values corresponding to undesired RPMS. After the 55% of no load RPM measurements are complete, the sequence returns to wait for five seconds before repeating the loop. The repetition of the entire test sequence did not work during testing; we found that the servos would open correctly but then close completely. To get new data, we had to reset the system. </p>
-
-	    <h4>Test Sequence State Machine</h4>
-	    <p>The test sequence was implemented into our code as a state machine based on the variable rpm_state with 12 states: ten corresponding to the ten measured RPMs mentioned above, one called PREP where the servos engage until they reach the desired RPM, and one called WAIT which accounts for the initial calibration time and lets the user change the voltage in between trials. The ten RPM level states are named NOLOAD for no load rpm, NINETY for 95% of no load, EIGHTY for 90%, SEVENTY for 85%, SIXTY for 80%, FIFTY for 75%, FORTY for 70%, THIRTY for 65%, TWENTY for 60%, and TEN for 55% </p>
-
-	    <p>The system begins in the case WAIT. WAIT first evaluates a conditional that checks if the overall system run time (stored in variable tm) is between 100 and 120 seconds and prints "starting" on the TFT; this serves as a warning for the end of the calibration period and lets the user know they can begin increasing the supplied voltage. We want to increase the voltage later in the calibration period because during calibration it is better to supply no or low voltage to the motor to prevent the mechanical set up from vibrating excessively. Next in WAIT is an if-elseif-else branch that does the following. First it checks if tm is greater than the 120 sec calibration time and whether a variable cont is 0, if the condition is true then we know to begin the test sequence. To begin, it sets the rpm_state to PREP, the destination state (stored in the variable dest) to NOLOAD, rpm_des to rpm_sum (initialized to zero), time to PT_GET_TIME(), cont to 1, and opens the servos. The condition for the else-if branch is to wait for 5 sec have elapsed after the end of the first sequence and check if cont is 1. The else-if does the same as the if statement, but is executed after one sequence is complete. If either condition fails, the else statement simply keeps the rpm_state at WAIT. </p>
-
-	    <p>The PREP state allows the system to attain the specified rpm in rpm_des prior to recording data. It also contains an if-elseif-else branch which does the following. First in the event that we have begun a new sequence and the destination state is NOLOAD, then we change rpm_state to dest, clear the running sum for torque (run_sum), set the running sum for RPM (rpm_sum) to newtime (the RPM measured from the photointerrupter), the number of data points collected to 1, and the time to PT_GET_TIME(). If the destination is not NOLOAD, then the next condition in PREP checks if the current rpm in newtime is greater than the desired rpm. If newtime is greater, than the shaft is spinning too fast and we want to engage the servos to slow down RPM. This is done by increasing des_angle1 and des_angle2 gradually (by increments of 10) and writing those values to the servo PWM until the else-if condition is false. Once the desired rpm is attained, then the program enters the else branch which clears run_sum and num_points and updates time and rpm_state to dest. </p>
-
-	    <p>The rest of the RPM states follow the same structure. The system remains in each of the RPM states for four seconds. During the four seconds, data is collected in the else statement which updates the running sums for torque (run_sum) as well as the number of points collected. If four seconds have elapsed, then the running average for torque and the desired rpm are transmitted through UART to a PC. Additionally, rpm_des is decremented to the next percentage of the no load RPM and the destination state is set to the corresponding state (unless we are already in the lowest rpm state (55%) in which case the destination is set to WAIT); we also send the program to PREP to engage the servos. NOLOAD is a special case in that here we also calculate the running average for RPM and store the value in rpm_sum; this is the no load RPM used as a reference for the rest of the states to calculate rpm_des. </p>
-
 
 	    <h2> Results </h2>
+	    <h3> Testing </h3>
 
 	    <h3> Example visualization: data from final demo </h3> 
 	    <p> For our final demo, the collected data was the following: </p>
