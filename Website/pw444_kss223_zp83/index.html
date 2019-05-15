@@ -12,6 +12,12 @@ figure figcaption {
 	text-align: center;
 	font-weight: bold;
 }
+table, th, td {
+	border: 1px solid black;
+	border-collapse: collapse;
+	text-align: center;
+	padding: 5px;
+}
 		</style>
 
 		<h1>ECE 5760 Final Project: String Art on FPGA</h1>
@@ -223,7 +229,7 @@ end</b></pre>
 		    <figure>
 			    <img src="./Images/RTL.png" alt="Add_Remove_Search" style="width:1000px">
 			    <figcaption>Fig.13 Control Module Overall RTL Diagram</figcaption>
-		    </figure>
+		    </figure>padding: 15px;
 	    </center>
 	    <center>
 		    <figure>
@@ -259,31 +265,117 @@ end</b></pre>
 
 	    <h2> Results </h2>
 	    <h3> Testing </h3>
-
-	    <h3> Example visualization: data from final demo </h3> 
-	    <p> For our final demo, the collected data was the following: </p>
+	    <p>Since this is a rather open ended project with many algorithmic approaches, we relied on the versatility of MATLAB to experiment with ideas. We mostly used the generated images to judge if a particular approach was acceptable, and ran it with multiple images on a workstation computer (since it was very slow). Then, after writing parts of the Verilog solver, we relied on ModelSim to verify the results against the same implementation in MATLAB. Below is a snippet of the testing of the controller together with the bresenham computation module, compared against our MATLAB script output.</p>
 	    <center>
-		    <img src="./Images/example_putty_output.png" alt="putty output" style="width:800px;height:500px;">
+		    <figure>
+			    <img src="./Images/modelsim.png" alt="ModelSim" style="width:1400px">
+			    <figcaption>Fig.19 ModelSim Testing of Solver Module</figcaption>
+		    </figure>
 	    </center>
-	    <p>In this text file, the first line is the header, every other line is empty and the last line was cut off when the data collection was stopped. The parsing method described above handles these issues, and then produces the following contour map: </p>
 	    <center>
-		    <img src="./Images/dyno_demo_contour.jpg" alt="contour map example" style="width:800px;height:400px;">
+		    <figure>
+			    <img src="./Images/matlab.png" alt="MATLAB" style="width:167px">
+			    <figcaption>Fig.20 MATLAB Result of Solver Module</figcaption>
+		    </figure>
 	    </center>
-	    <p> Here, we can see that at peak efficiency can be observed within 10000 – 11000 RPM and 0.05 – 0.07 N.m of torque. We only took a few data points here, so a more systematic sweep would produce better results.</p>
+	    <p> The first two lines of the ModelSim output is ready when the last line signal goes high, and represents the two pin position indices. Note that there exist a difference of 1 between both ModelSim outputs (151, 223), (163, 229) and the MATLAB results, due to the index differences of each programming language. MATLAB's indices begin at 1, hence the results are 1 larger than Verilog's which begins at 0.</p>
+	    <h3> Final Results </h3> 
+	    <div class="flex-container">
+		    <figure>
+			    <img src="./Images/adaori.png" alt="Original Image" style="height:400px">
+			    <figcaption>Fig.21 Cutout of <i>Penitent Magdalene</i> by El Greco</figcaption>
+		    </figure>
+		    <figure>
+			    <img src="./Images/ada.jpg" alt="Processed Image" style="height:400px">
+			    <figcaption>Fig.22 FPGA Result</figcaption>
+		    </figure>
+	    </div>
 
-	    <h3> Speed of execution </h3>
-	    <p>One trade-off that limited the speed of execution of our system was the accuracy of the readings taken. Since accuracy is a higher priority than fast execution, we made changes that slowed down our testing sequence in favor of more accurate data. For example, in the final version of our dynamometer code, the test sequence allows for 120 seconds of calibration instead of the previous 45 seconds. This change gives the digital potentiometer nearly three times the time to zero out and balance the wheatstone bridge we get our torque measurments from. The extra time also lets the user give lower voltages to the motor during calibration instead of having to immediately turn up the voltage to that desired for testing, lowering the effect of vibration on calibration.</p>
-	    <p>Additionally, the test sequence increments the servos PWM value by only 10 values at a time. We chose this value because we found that incrementing one was by far too slow, yet increasing this value to say 100 decreased the accuracy as the RPM would decrease too rapidly.</p>
+	    <div class="flex-container">
+		    <figure>
+			    <img src="./Images/einstein_ori.png" alt="Original Image" style="height:400px">
+			    <figcaption>Fig.23 Cutout of Albert Einstein's Famous Portrait</figcaption>
+		    </figure>
+		    <figure>
+			    <img src="./Images/einsteindark.jpg" alt="Processed Image" style="height:400px">
+			    <figcaption>Fig.24 FPGA Result</figcaption>
+		    </figure>
+	    </div>
 
-	    <h3> Accuracy </h3>
+	    <div class="flex-container">
+		    <figure>
+			    <img src="./Images/turingori.png" alt="Original Image" style="height:400px">
+			    <figcaption>Fig.25 Cutout of Alan Turing</figcaption>
+		    </figure>
+		    <figure>
+			    <img src="./Images/turing.jpg" alt="Processed Image" style="height:400px">
+			    <figcaption>Fig.26 FPGA Result</figcaption>
+		    </figure>
+	    </div>
+	    <div class="flex-container">
+		    <figure>
+			    <img src="./Images/peaceori.png" alt="Original Image" style="height:400px">
+			    <figcaption>Fig.27 Peace Sign</figcaption>
+		    </figure>
+		    <figure>
+			    <img src="./Images/peace.jpg" alt="Processed Image" style="height:400px">
+			    <figcaption>Fig.28 FPGA Result</figcaption>
+		    </figure>
+	    </div>
 
-	    <p> Due to the fact that we decided to test the system with a small brushed DC motor, the early test results do not appear to be very accurate. The magnitude of torque we expect to measure is on the order of 2-5 N-m, whereas the brushed motor is only capable of exerting 0.1-0.2 N-m at best. Therefore, the results vary and could be seen in the test run video. However, we expect this to be a lot better once we move on to test the larger brushless DC outrunner motors, which was the purpose for this project.</p>
-
+	    <h3> Speed of Execution </h3>
+	    <p> The following screenshots were obtained from running each of the above images.</p>
+	    <div class="flex-container">
+		    <figure>
+			    <img src="./Images/ada.png" alt="ada time" style="height:800px">
+			    <figcaption>Fig.29 Time of Execution for <i>Penitent Magdalene</i> Image (Fig. 22) </figcaption>
+		    </figure>
+		    <figure>
+			    <img src="./Images/einstein1_darker.png" alt="einstein time" style="height:800px">
+			    <figcaption>Fig.30 Time of Execution for Einstein Image (Fig. 24)</figcaption>
+		    </figure>
+	    </div>
+	    <div class="flex-container">
+		    <figure>
+			    <img src="./Images/turing.png" alt="turing time" style="height:800px">
+			    <figcaption>Fig.31 Time of Execution for Turing Image (Fig. 26)</figcaption>
+		    </figure>
+		    <figure>
+			    <img src="./Images/peace.png" alt="peace time" style="height:800px">
+			    <figcaption>Fig.32 Time of Execution for Peace Sign Image (Fig. 28)</figcaption>
+		    </figure>
+	    </div>
+	    <p> We also ran some of the images above in MATLAB for comparison. However, not all of the MATLAB runs were completed, since they were taking upwards of 12 hours with our serial implementation. So the table below compares their relative work efficiency, in edges added per second.</p>
+	    <center>
+		    <table style="width:800px">
+			    <tr>
+				    <th>Image</th>
+				    <th>MATLAB Rate (Edges Per Second)</th>
+				    <th>FPGA Rate (Edges Per Second)</th> 
+				    <th>Acceleration</th>
+			    </tr>
+			    <tr>
+				    <td><i>Penitent Magdalene</i></td>
+				    <td>Einstein</td> 
+				    <td>Turing</td>
+				    <td>Peace</td>
+			    </tr>
+			    <tr>
+				    <td>Einstein</td> 
+				    <td>Jackson</td> 
+				    <td>94</td>
+				    <td>94</td>
+			    </tr>
+			    <tr>
+				    <td>Turing</td>
+				    <td>Jackson</td> 
+				    <td>94</td>
+				    <td>94</td>
+			    </tr>
+		    </table>
+	    </center>
 	    <h3> Safety and Usability </h3>
-	    <p> To keep our design safe, we constructed a shield for the main body out of plexiglass. During operation the shield is placed in front of the main mechanical setup to block any material that may fly off. Another safety concern we faced in our design was the danger of using high power. To address this issue, we compartmentalized the components of our system that would be carrying high current and/or high voltage to protect the other parts of our system. Additionally, we used wires with more insulation for our high current wiring and wrapped any exposed sections at connections with shrink wraps and/or electrical tape. </p>
-
-	    <h3> Interference </h3>
-	    <p> No significant interference problems were observed throughout this project, since no signals were transmitted wirelessly.
+	    <p> To </p>
 
 	    <h2> Conclusions </h2>
 	    <p>Looking back our expectations, the results of what we were able to accomplish exceeded our expectations for the class project: all sensors worked and were integrated together, the test sequence is nearly completely autonmous, and based on the contour maps we have seen from our few trials, the data collected seems reasonable and will be useful for future use by the Resistance Racing team. Further work we could do to improve our project even more is to have the test sequence able to loop back after changing the voltage supply. This way multiple trials can be run and stored on the same text file rather; as of now, the data from different trials must be manually concatenated in order to display all collected data on the same contour map. This can also be improved with the integration of the motor controller for the brushless system, since that way with a more complex sequence we would be able to do sweep with a large number of data points.</p>
